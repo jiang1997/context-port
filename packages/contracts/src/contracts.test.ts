@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CreateContextSchema, TagNameSchema } from './index.js';
+import { CreateContextSchema, CreateSharedContextSchema, TagNameSchema } from './index.js';
 
 describe('shared contracts', () => {
   it('normalizes tag names', () => {
@@ -18,5 +18,11 @@ describe('shared contracts', () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it('validates the experience context input', () => {
+    expect(
+      CreateSharedContextSchema.parse({ title: 'Architecture', content: 'Use PostgreSQL.' }),
+    ).toEqual({ title: 'Architecture', content: 'Use PostgreSQL.' });
   });
 });

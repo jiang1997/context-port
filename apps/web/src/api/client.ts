@@ -17,6 +17,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
     const payload: unknown = await response.json().catch(() => undefined);
     throw new ApiError(response.status, payload);
   }
+  if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
 
