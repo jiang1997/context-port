@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   HttpCode,
+  Inject,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -20,7 +21,7 @@ import { ContextService } from './context.service.js';
 
 @Controller('api/v1/contexts')
 export class ContextController {
-  constructor(private readonly contexts: ContextService) {}
+  constructor(@Inject(ContextService) private readonly contexts: ContextService) {}
 
   @Get()
   list() {

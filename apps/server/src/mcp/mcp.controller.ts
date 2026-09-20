@@ -1,4 +1,4 @@
-import { All, Controller, Req, Res } from '@nestjs/common';
+import { All, Controller, Inject, Req, Res } from '@nestjs/common';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { Request, Response } from 'express';
@@ -7,7 +7,7 @@ import { createMcpServer } from './mcp.server.js';
 
 @Controller('mcp')
 export class McpController {
-  constructor(private readonly contexts: ContextService) {}
+  constructor(@Inject(ContextService) private readonly contexts: ContextService) {}
 
   @All()
   async handle(@Req() request: Request, @Res() response: Response) {
