@@ -1,0 +1,21 @@
+{
+  "name": "context-port",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@12.4.2",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "dev": "pnpm --parallel --filter @contextport/server --filter @contextport/web dev",
+    "typecheck": "pnpm --filter @contextport/contracts build && pnpm --filter @contextport/db build && pnpm --filter @contextport/web typecheck && pnpm --filter @contextport/server typecheck",
+    "test": "pnpm -r --if-present test",
+    "db:generate": "pnpm --filter @contextport/db db:generate",
+    "db:migrate": "pnpm --filter @contextport/db db:migrate"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.2",
+    "typescript": "5.9.3"
+  }
+}
