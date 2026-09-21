@@ -22,8 +22,8 @@ const EnvironmentSchema = z
       .enum(['true', 'false'])
       .default('false')
       .transform((value) => value === 'true'),
-    API_AUTH_TOKEN: z.string().min(24).optional(),
-    LOG_LEVEL: z.enum(['error', 'warn', 'log', 'debug', 'verbose']).default('log'),
+    API_AUTH_TOKEN: z.preprocess(value => value === '' ? undefined : value, z.string().min(24).optional()),
+    LOG_LEVEL: z.preprocess(value => value === 'info' ? 'log' : value, z.enum(['error', 'warn', 'log', 'debug', 'verbose']).default('log')),
   })
   .superRefine((value, context) => {
     if (value.DEPLOYMENT_MODE === 'network' && !value.API_AUTH_ENABLED) {

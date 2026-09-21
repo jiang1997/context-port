@@ -1,22 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { CreateContextSchema, TagNameSchema } from './index.js';
-
-describe('shared contracts', () => {
-  it('normalizes tag names', () => {
-    expect(TagNameSchema.parse(' High-Priority ')).toBe('high-priority');
+import { CreateContextSchema, CreateThreadSchema, ListContextsSchema } from './index.js';
+describe('MVP document contracts', () => {
+  it('accepts human and agent documents and preserves Markdown whitespace', () => {
+    for (const createdByType of ['human', 'agent']) {
+      expect(CreateContextSchema.parse({ title: ' Title ', content: '  code\n', createdByType })).toEqual({ title: 'Title', content: '  code\n', createdByType });
+    }
   });
-
-  it('requires handoff contexts to be global', () => {
-    const result = CreateContextSchema.safeParse({
-      idempotencyKey: '2fcf603b-ad8b-4f1c-8553-d6a9547420d5',
-      stageId: 'dcb3b4e6-9bdb-4504-8f2c-1b7c3ff2f475',
-      expectedHandoffContextId: null,
-      type: 'handoff',
-      content: 'next step',
-      createdByType: 'agent',
-      createdBy: 'test-agent',
-    });
-
-    expect(result.success).toBe(false);
+  it('rejects blank titles, oversized bodies and injected versions', () => {
+    const valid = { title: 'Title', createdByType: 'human' };
+    expect(CreateThreadSchema.safeParse({ ...valid, title: '   ' }).success).toBe(false);
+    expect(CreateContextSchema.safeParse({ ...valid, content: 'x'.repeat(100001) }).success).toBe(false);
+    expect(CreateContextSchema.safeParse({ ...valid, version: 8 }).success).toBe(false);
+  });
+  it('bounds pagination', () => {
+    expect(ListContextsSchema.parse({})).toEqual({ limit: 50, offset: 0 });
+    expect(ListContextsSchema.safeParse({ limit: 10000 }).success).toBe(false);
   });
 });

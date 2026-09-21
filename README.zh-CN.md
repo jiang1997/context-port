@@ -2,52 +2,80 @@
 
 [English](README.md)
 
-ContextPort v0 是一个共享上下文平台，让人类与 Agent 能够围绕同一个 Task 持续读取、补充和交接结构化知识。
+人类与 Agent 共同维护 Context，并在其下使用 Thread 整理具体话题。
+当前 MVP 支持创建和读取；Thread 是文档，不是聊天消息。
 
-当前仓库处于项目骨架阶段，已经包含：
+## 已实现
 
-- pnpm monorepo 与共享 TypeScript 配置
-- React + Vite Web 应用
-- NestJS Server 及领域模块边界
-- 共享 Zod 契约
-- Drizzle ORM Schema 与首个 PostgreSQL Migration
-- 本地 Docker Compose 配置与健康检查
+- Web：Context 列表、创建、详情；Thread 创建、详情，读取结果每 5 秒刷新。
+- REST 与 Streamable HTTP MCP 共用业务服务，数据保存到 PostgreSQL。
+- 创建时原子保存 v1 和不可变 Revision（标题、正文、作者、时间及入口）。
+- Context 详情返回 Thread 索引，Thread 正文按需读取。
 
-## 环境要求
+尚未提供编辑、删除、排序、归档、历史查看/恢复。版本更新未来必须使用
+`expectedVersion`。Markdown 目前按原文显示。
 
-- Node.js 24 LTS
-- pnpm 12.4.2
-- Docker / Docker Compose
+## 本地启动
 
-## 本地开发
+要求 Node.js 24 LTS、pnpm 12.4.2、Docker。
 
 ```bash
+# 首次运行复制配置；已有 .env 时保留现有配置
 cp .env.example .env
 pnpm install
 docker compose up -d postgres
 pnpm db:migrate
+pnpm build
 pnpm dev
 ```
 
-Web 默认运行于 `http://localhost:5173`，Server 默认运行于 `http://127.0.0.1:3000`。
+Web：`http://localhost:5173`；REST：`http://127.0.0.1:3000/api/v1`；
+MCP：`http://127.0.0.1:3000/mcp`（Streamable HTTP，无状态）。
+使用 localhost 打开 Web，与默认 WEB_ORIGIN 保持一致。
 
-## 常用命令
+REST 接口：
+
+| 方法 | 路径 | 功能 |
+| --- | --- | --- |
+| GET | `/contexts?limit=50&offset=0` | Context 摘要列表 |
+| POST | `/contexts` | 创建 Context |
+| GET | `/contexts/:contextId` | 正文与 Thread 索引 |
+| POST | `/contexts/:contextId/threads` | 创建 Thread |
+| GET | `/contexts/:contextId/threads/:threadId` | 读取 Thread |
+
+创建请求示例（Context、Thread 共用）：
+
+```json
+{"title":"部署方案","content":"# 背景\n项目约束…","createdByType":"human","createdBy":"用户"}
+```
+
+MCP 工具：`list_contexts`、`get_context`、`create_context`、`create_thread`、`get_thread`。
+Agent 创建时传 `createdByType: "agent"`，可用 `createdBy` 标记名称。
+读取或创建 Thread 时提供 `contextId`，读取 Thread 额外提供 `threadId`。
+创建没有幂等键；调用超时后先检查列表，避免盲目重试造成重复。
+
+本地默认无鉴权且仅监听回环地址。网络模式要求设置 `DEPLOYMENT_MODE=network`、
+`API_AUTH_ENABLED=true` 和至少 24 字符的 `API_AUTH_TOKEN`，REST/MCP 都检查
+`Authorization: Bearer <token>`。当前 Web 未提供 Token 登录界面，MVP 面向本地使用。
+创建者名称是调用方声明，不代表经过认证的个人身份；尚无 SaaS 租户隔离。
+
+## 验证
 
 ```bash
-pnpm build
 pnpm typecheck
+pnpm build
 pnpm test
-pnpm db:generate
-pnpm db:migrate
 ```
 
-## Workspace
+真实数据库集成测试需单独提供可丢弃的 `TEST_DATABASE_URL`，默认跳过。
+测试会运行 migration、写入数据并临时创建触发器，不要指向业务数据库。
 
-```text
-apps/web          React Web
-apps/server       NestJS REST 与 MCP 入口
-packages/contracts 共享 Zod 契约
-packages/db       Drizzle Schema、Client 与 Migrations
+```bash
+TEST_DATABASE_URL=postgresql://user:password@localhost:5432/contextport_test pnpm test
 ```
 
-下一阶段将接通 Task、Context、REST 与 MCP 的最小闭环。
+`0001_context_thread.sql` 是新增表的迁移，保留旧 Task 等实验数据，不自动转换。
+现有迁移手工维护；修改 Schema 后需同时维护 SQL migration 和 journal，
+不要直接依赖 `db:generate`（仓库尚未建立完整 Drizzle snapshot 基线）。
+
+后续设计和范围见 [note.md](note.md)。

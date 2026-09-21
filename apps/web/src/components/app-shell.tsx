@@ -14,10 +14,10 @@ export function AppShell({ children }: PropsWithChildren) {
         </Link>
         <nav aria-label="Main navigation">
           <NavLink to="/" end>
-            Tasks
+            Contexts
           </NavLink>
-          <NavLink className="button button-small" to="/tasks/new">
-            New task
+          <NavLink className="button button-small" to="/contexts/new">
+            创建 Context
           </NavLink>
         </nav>
       </header>

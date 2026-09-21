@@ -1,53 +1,50 @@
 # ContextPort
 
-[简体中文](README.zh-CN.md)
+[简体中文 / Setup and API reference](README.zh-CN.md)
 
-ContextPort v0 is a shared context platform where humans and agents can continuously read, add, and hand off structured knowledge around the same task.
+A shared knowledge workspace for humans and agents. A Context holds shared background;
+Threads are focused documents belonging to a Context.
 
-The repository is currently at the project scaffold stage and includes:
+The MVP supports creating and reading Contexts and Threads through Web, REST, and MCP.
+Every creation atomically stores an immutable v1 revision. Editing, revision browsing,
+restoration, archiving, and custom ordering are deferred. Future edits must check
+`expectedVersion` and store a revision in the same transaction.
 
-- A pnpm monorepo with shared TypeScript configuration
-- A React and Vite web application
-- A NestJS server with domain module boundaries
-- Shared Zod contracts
-- A Drizzle ORM schema and initial PostgreSQL migration
-- Local Docker Compose setup and health checks
+## Local development
 
-### Requirements
-
-- Node.js 24 LTS
-- pnpm 12.4.2
-- Docker / Docker Compose
-
-### Local development
+Requires Node.js 24 LTS, pnpm 12.4.2, and Docker.
 
 ```bash
-cp .env.example .env
+cp .env.example .env # First setup only; preserve existing configuration
 pnpm install
 docker compose up -d postgres
 pnpm db:migrate
+pnpm build
 pnpm dev
 ```
 
-The web app runs at `http://localhost:5173` and the server runs at `http://127.0.0.1:3000` by default.
+Web: `http://localhost:5173`. REST: `http://127.0.0.1:3000/api/v1`.
+Stateless Streamable HTTP MCP: `http://127.0.0.1:3000/mcp`.
 
-### Commands
+MCP tools: `list_contexts`, `get_context`, `create_context`, `create_thread`, `get_thread`.
+Creation accepts `title`, optional `content`, `createdByType` (`human` or `agent`), and
+optional `createdBy`. Thread operations require `contextId`; reading also requires `threadId`.
+Context reads return the Thread index without Thread bodies.
+
+Local unauthenticated mode only binds to loopback. Network mode requires the same Bearer
+Token on REST and MCP. The Web has no token login UI yet. Actor names are caller-supplied
+labels, not authenticated user identities. This is not a multi-tenant SaaS release.
+
+## Validation
 
 ```bash
-pnpm build
 pnpm typecheck
+pnpm build
 pnpm test
-pnpm db:generate
-pnpm db:migrate
+# Dedicated disposable database only; integration tests skip without this variable:
+TEST_DATABASE_URL=postgresql://user:password@localhost:5432/contextport_test pnpm test
 ```
 
-### Workspace
-
-```text
-apps/web          React Web
-apps/server       NestJS REST and MCP entry points
-packages/contracts Shared Zod contracts
-packages/db       Drizzle schema, client, and migrations
-```
-
-The next milestone is to connect the minimum Task, Context, REST, and MCP workflow.
+Migrations preserve legacy experimental tables. SQL migrations are manually maintained;
+a complete Drizzle snapshot baseline for `db:generate` has not been established yet.
+See [note.md](note.md) for the product design and next milestones.

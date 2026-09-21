@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { CreatorSchema, IdempotencyKeySchema, UUIDSchema } from './common.js';
-import { ContextSummarySchema, InitialContextSchema } from './context.js';
+import { ContextSummarySchema, InitialContextSchema } from './legacy-context.js';
 
 export const CreateTaskSchema = z
   .object({

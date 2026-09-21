@@ -58,3 +58,14 @@ p { color: #91a2a7; line-height: 1.65; }
   .detail-grid { grid-template-columns: 1fr; }
   .form-actions { align-items: flex-start; flex-direction: column; }
 }
+
+.document-list { display: grid; gap: 16px; margin-top: 36px; }
+.document-card { display: block; min-height: auto; }
+.document-card:hover, .thread-link:hover { border-color: #76dfc8; color: #76dfc8; }
+.document-body { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.8; margin: 0; }
+h1, h2 { overflow-wrap: anywhere; }
+.thread-link { display: block; padding: 16px 0; border-bottom: 1px solid #263337; overflow-wrap: anywhere; }
+.thread-link small { display: block; color: #91a2a7; margin-top: 8px; }
+.thread-label { display: block; margin-top: 32px; }
+button:disabled { opacity: .5; cursor: default; }
+[role="alert"] { color: #ffaaa4; }
