@@ -37,6 +37,14 @@ p { color: #91a2a7; line-height: 1.65; }
 .button { display: inline-flex; justify-content: center; align-items: center; margin-top: 18px; padding: 12px 18px; border: 0; border-radius: 10px; color: #07100f; background: #76dfc8; font-weight: 700; cursor: pointer; }
 .button-small { margin: 0; padding: 9px 13px; }
 
+.token-form { display: flex; align-items: center; gap: 8px; }
+.token-form input { width: 150px; padding: 8px 10px; color: #f0f4f5; background: #111a1d; border: 1px solid #2b393d; border-radius: 8px; outline: none; font-size: 13px; }
+.token-form input:focus { border-color: #67cdb8; }
+.token-saved { display: inline-flex; align-items: center; gap: 8px; color: #6addb8; font-size: 13px; }
+.token-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #6addb8; box-shadow: 0 0 10px #6addb8; }
+.token-clear { background: transparent; border: 1px solid #2b393d; border-radius: 8px; padding: 7px 10px; color: #a8b5b9; font-size: 13px; cursor: pointer; }
+.token-clear:hover { border-color: #76dfc8; color: #76dfc8; }
+
 .task-form { margin-top: 42px; display: grid; gap: 22px; }
 .task-form label { display: grid; gap: 9px; color: #c7d0d2; font-size: 14px; }
 .task-form input, .task-form textarea { width: 100%; padding: 13px 14px; color: #f0f4f5; background: #111a1d; border: 1px solid #2b393d; border-radius: 10px; outline: none; resize: vertical; }
@@ -49,8 +57,10 @@ p { color: #91a2a7; line-height: 1.65; }
 .timeline-panel { min-height: 460px; }
 
 @media (max-width: 700px) {
-  .topbar { padding: 0 20px; }
+  .topbar { height: auto; min-height: 76px; padding: 12px 20px; flex-wrap: wrap; row-gap: 10px; }
   .brand small, nav > a:first-child { display: none; }
+  nav { flex-wrap: wrap; row-gap: 8px; }
+  .token-form input { width: 100px; }
   .page { padding: 52px 0; }
   .page-heading { display: block; }
   .status-chip { display: inline-block; margin-top: 20px; }

@@ -17,6 +17,7 @@ const EnvironmentSchema = z
     PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
     HOST: z.string().default('127.0.0.1'),
     WEB_ORIGIN: z.string().url().default('http://localhost:5173'),
+    WEB_EXTRA_ORIGINS: z.string().default(''),
     DEPLOYMENT_MODE: z.enum(['local', 'network']).default('local'),
     API_AUTH_ENABLED: z
       .enum(['true', 'false'])
@@ -50,6 +51,15 @@ const EnvironmentSchema = z
   });
 
 export type Environment = z.infer<typeof EnvironmentSchema>;
+
+/** Primary origin plus comma-separated extras (e.g. Vercel preview deployments). */
+export function getAllowedOrigins(environment: Environment): string[] {
+  const extras = (environment.WEB_EXTRA_ORIGINS ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  return [environment.WEB_ORIGIN, ...extras];
+}
 
 let cachedEnvironment: Environment | undefined;
 

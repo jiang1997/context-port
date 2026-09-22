@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: contextport-server
+    runtime: node
+    plan: free
+    rootDir: .
+    buildCommand: >-
+      corepack enable &&
+      corepack prepare pnpm@12.4.2 --activate &&
+      pnpm install --frozen-lockfile &&
+      pnpm --filter @contextport/contracts build &&
+      pnpm --filter @contextport/db build &&
+      pnpm --filter @contextport/server build
+    startCommand: pnpm --filter @contextport/server start
+    # No preDeployCommand: Render only offers it on paid plans, so on the free
+    # plan database migrations never run automatically. Migrate manually before
+    # (or right after) each deploy that changes the schema:
+    #   DATABASE_URL=<Neon DIRECT (unpooled) connection string> pnpm db:migrate
+    healthCheckPath: /health/live
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 24
+      - key: HOST
+        value: 0.0.0.0
+      # Render injects PORT automatically; do not hardcode it.
+      - key: DEPLOYMENT_MODE
+        value: network
+      - key: API_AUTH_ENABLED
+        value: true
+      - key: LOG_LEVEL
+        value: log
+      - key: WEB_ORIGIN
+        sync: false
+      - key: WEB_EXTRA_ORIGINS
+        value: ""
+      - key: API_AUTH_TOKEN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
