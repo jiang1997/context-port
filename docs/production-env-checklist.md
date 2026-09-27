@@ -5,9 +5,9 @@
 
 现有 Context 不保留。已在 Neon 项目 `contextport` 的 `production` 分支新建空数据库 `contextport_auth`，未复制旧记录，也未做所有者回填。旧数据库 `neondb` 暂时保留供核对；新库已运行全部 SQL migration。
 
-## 0. 上线前代码门槛（本地已完成，尚未部署）
+## 0. 上线代码门槛（已完成）
 
-仓库已移除共享 Token 认证和必填配置，新增 `0004_require_context_owner.sql`，在空库中将 `owner_user_id` 收紧为 `NOT NULL`；类型检查、构建及一次性 PostgreSQL 集成测试已通过。这些改动**尚未部署**。旧生产服务仍使用共享 Token；在新版服务成功上线前，不要删除 Render 上的旧 Token。
+仓库已移除共享 Token 认证和必填配置，新增 `0004_require_context_owner.sql`，在空库中将 `owner_user_id` 收紧为 `NOT NULL`。PR #1 已通过 CI 并部署；CI 现会运行 PostgreSQL 集成测试。Render 上的旧共享 Token 配置已移除。
 
 ## 1. Google Cloud Console（OAuth 客户端）
 
@@ -24,7 +24,7 @@ Preview 域名登录目前不可直接验收：Render 的 `PUBLIC_BASE_URL` 固�
 
 ## 2. Neon：新建空库并初始化 Schema
 
-已完成（2026-09-27）：`contextport_auth` 使用 direct 连接串运行全部 migration；已核对 `users`、`sessions`、`contexts`、`threads`、`revisions`、`api_keys` 表存在、记录数均为 0，且 `contexts.owner_user_id` 为 `NOT NULL`。Render 尚未切换到新库。
+已完成（2026-09-27）：`contextport_auth` 使用 direct 连接串运行全部 migration；迁移后核对 `users`、`sessions`、`contexts`、`threads`、`revisions`、`api_keys` 表存在、记录数均为 0，且 `contexts.owner_user_id` 为 `NOT NULL`。Render 已切换到新库；正式域名首次登录现已创建用户记录，Context 仍为空。
 
 1. 在现有 Neon 项目中新建**空数据库**；不要将旧主分支复制成新分支当作空库，Neon 分支会复制现有数据。
 2. 取得新库的 **direct（unpooled）** 连接串，使用待上线代码执行 `DATABASE_URL=<新库 direct URL> pnpm db:migrate`。确认最新迁移已把 `owner_user_id` 设为 `NOT NULL`。这是建表步骤，不迁移旧记录。
@@ -37,40 +37,41 @@ Preview 域名登录目前不可直接验收：Render 的 `PUBLIC_BASE_URL` 固�
 已由 render.yaml 固定的不用动：`HOST`、`DEPLOYMENT_MODE=network`、
 `COOKIE_SECURE=auto`、`LOG_LEVEL`。新版服务对业务接口始终要求浏览器会话或个人 API Key。
 
-需要在 dashboard 设置/确认的（`sync: false` 项）：
+已设置并核对的（`sync: false` 项）：
 
 | Key | Value | 说明 |
 | --- | --- | --- |
-| `DATABASE_URL` | **新库 pooled** 连接串 | 新库 Schema 初始化并核对后切换 |
+| `DATABASE_URL` | **新库 pooled** 连接串 | 已切换至 `contextport_auth` |
 | `WEB_ORIGIN` | `https://context-port.vercel.app` | 已有，确认值正确 |
-| `API_AUTH_TOKEN` | 旧服务仍在用 | 新版服务成功部署并验证后从 Dashboard 删除；新版代码不读取它 |
-| `GOOGLE_CLIENT_ID` | xxx.apps.googleusercontent.com | Testing 阶段可与本地共用；开放前换生产客户端 |
-| `GOOGLE_CLIENT_SECRET` | GOCSPX-… | 与上述 Client ID 配对，保存在 Render |
-| `PUBLIC_BASE_URL` | `https://context-port.vercel.app` | 新增；回调地址由它拼接 |
+| `API_AUTH_TOKEN` | 已删除 | 新版代码不读取它；`API_AUTH_ENABLED` 也已删除 |
+| `GOOGLE_CLIENT_ID` | xxx.apps.googleusercontent.com | 已设置；Testing 阶段与本地共用 |
+| `GOOGLE_CLIENT_SECRET` | GOCSPX-… | 已设置，与上述 Client ID 配对 |
+| `PUBLIC_BASE_URL` | `https://context-port.vercel.app` | 已设置；回调地址由它拼接 |
 
-Render 免费 Web 服务没有可用的 `preDeployCommand`。环境变量变更可能触发部署，因此切换 `DATABASE_URL` 前必须完成新库 Schema 初始化。新版代码成功上线后，再从 Dashboard 删除旧 `API_AUTH_TOKEN`；`render.yaml` 已移除相关定义。
+Render 免费 Web 服务没有可用的 `preDeployCommand`。这次先完成新库 Schema，再保存 Render 环境变量并部署。旧 `API_AUTH_TOKEN` 与 `API_AUTH_ENABLED` 已从 Render 删除，随后重新部署，使运行中的服务也不再加载它们。
 
 ## 4. Vercel（项目 context-port）
 
 环境变量：
 
 ```
-VITE_API_BASE_URL=/api/v1     # 覆盖 Production 的现有值；Preview 可相同，但目前不验收 Preview 登录
+VITE_API_BASE_URL=/api/v1     # Production 与 Preview 已更新；目前不验收 Preview 登录
 ```
 
-CLI 方式（逐个环境执行，回车后输入值）：
+CLI 方式（已用于 Production；该变量同时属于 Preview）：
 
 ```bash
-vercel env rm VITE_API_BASE_URL production --project context-port --yes
-vercel env add VITE_API_BASE_URL production --project context-port   # 输入: /api/v1
+vercel env update VITE_API_BASE_URL production --project context-port --value /api/v1 --yes
 ```
 
 `vercel.json`（仓库根，随代码部署）：`/api/:path*` → Render 同路径，
 置于 SPA 回退之前。**确认 destination 与 Render 实际域名一致**（当前写的是
 `https://contextport-server-sg.onrender.com`，以 dashboard 显示为准）。
-Vercel 环境变量修改只对新部署生效，之后要确认正式站点重新部署。
+Vercel 已在环境变量更新后重新部署正式站点。
 
 ## 5. 部署顺序与验证
+
+当前已完成：PR #1 合并、GitHub CI、Neon 空库迁移、Render/Vercel 部署；正式域名匿名 `/auth/me` 返回空用户、未登录 `/contexts` 返回 `401`、Google 授权跳转使用正式回调；所有者在 Chrome 中登录成功且刷新后保持会话。尚需第二个 Google 账号的真实跨用户验证、退出/重新登录及 Safari/Firefox 验收。正式发布事项按用户要求暂缓。
 
 1. 在不触发 Render 正式服务部署的分支上提交第 0 节改动并通过 CI；Google OAuth 暂用同一 Testing 项目/客户端验证本地和正式域名。不要先推送到 Render 监听的正式分支；Testing 状态本身不限制本应用的注册者。
 2. 新建 Neon 空库，用 direct 连接串执行全部 migration 并核对表和约束。

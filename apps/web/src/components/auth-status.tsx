@@ -6,7 +6,7 @@ function UserMenu({ user }: { user: SessionUser }) {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: logout,
-    onSettled: () => void queryClient.invalidateQueries(),
+    onSuccess: () => queryClient.clear(),
   });
   return (
     <span className="user-menu" title={user.email}>
