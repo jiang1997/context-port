@@ -1,12 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 import { fetchMe, googleLoginUrl, logout, type SessionUser } from '../api/auth';
 
 function UserMenu({ user }: { user: SessionUser }) {
-  const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: logout,
-    onSuccess: () => queryClient.clear(),
+    // A full navigation discards every cached private query after the server
+    // revokes the session, including details currently mounted off-screen.
+    onSuccess: () => window.location.replace('/'),
   });
   return (
     <span className="user-menu" title={user.email}>
