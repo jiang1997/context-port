@@ -1,8 +1,9 @@
 services:
   - type: web
-    name: contextport-server
+    name: contextport-server-sg
     runtime: node
     plan: free
+    region: singapore
     rootDir: .
     # NOTE: do NOT use `corepack enable` here. Render's build filesystem is
     # read-only around /usr/bin (preinstalled pnpm lives there), so corepack
