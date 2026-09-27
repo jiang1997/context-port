@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ContextDetail, ContextSummary, CreateContextInput, Thread } from '@contextport/contracts';
 import { apiRequest } from '../api/client';
 import { useAuthSession } from '../components/auth-status';
+import { CopyContextIdButton } from '../components/copy-context-id';
 
 function ErrorMessage({ error }: { error: Error | null }) {
   return error ? <p role="alert">{error.message}</p> : null;
@@ -38,9 +39,12 @@ export function ContextListPage() {
     {!auth.isPending && !auth.error && !auth.data?.user && <p>请先使用右上角的 Google 登录。</p>}
     {auth.data?.user && query.isPending && <p>正在加载…</p>}
     {contexts?.length === 0 && <p>这里还没有 Context。创建一个，开始与 Agent 共享上下文。</p>}
-    <div className="document-list">{contexts?.map(item => <Link className="panel document-card" to={`/contexts/${item.id}`} key={item.id}>
-      <h2>{item.title}</h2><p>{item.createdBy ?? item.createdByType} · {new Date(item.createdAt).toLocaleString()}</p>
-    </Link>)}</div>
+    <div className="document-list">{contexts?.map(item => <article className="panel document-card" key={item.id}>
+      <Link className="document-card-link" to={`/contexts/${item.id}`}>
+        <h2>{item.title}</h2><p>{item.createdBy ?? item.createdByType} · {new Date(item.createdAt).toLocaleString()}</p>
+      </Link>
+      <CopyContextIdButton contextId={item.id} compact />
+    </article>)}</div>
     <div className="form-actions"><button className="button" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 20))}>上一页</button>
     <button className="button" disabled={!contexts || contexts.length < 20} onClick={() => setOffset(offset + 20)}>下一页</button></div>
   </div>;
@@ -61,6 +65,7 @@ export function ContextDetailPage() {
   return <div className="page"><Link to="/">← 所有 Context</Link><ErrorMessage error={query.error} />
     {query.isPending && <p>正在加载…</p>}{query.data && <>
     <h1>{query.data.title}</h1><p>{query.data.createdBy ?? query.data.createdByType} · v{query.data.version}</p>
+    <p className="context-id-line"><span className="context-id-label">Context ID</span> <CopyContextIdButton contextId={query.data.id} /></p>
     <section className="panel"><pre className="document-body">{query.data.content || '暂无正文'}</pre></section>
     <div className="detail-grid"><section className="panel"><h2>Threads</h2>
     {query.data.threads.length === 0 && <p>还没有 Thread。</p>}

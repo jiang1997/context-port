@@ -76,11 +76,23 @@ p { color: #91a2a7; line-height: 1.65; }
 
 .document-list { display: grid; gap: 16px; margin-top: 36px; }
 .document-card { display: block; min-height: auto; }
-.document-card:hover, .thread-link:hover { border-color: #76dfc8; color: #76dfc8; }
+.document-card-link { display: block; border-radius: 8px; }
+.document-card-link:hover h2 { color: #76dfc8; }
+.document-card:hover { border-color: #2f4146; }
+.document-card-link:hover { color: inherit; }
 .document-body { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.8; margin: 0; }
 h1, h2 { overflow-wrap: anywhere; }
 .thread-link { display: block; padding: 16px 0; border-bottom: 1px solid #263337; overflow-wrap: anywhere; }
 .thread-link small { display: block; color: #91a2a7; margin-top: 8px; }
+.thread-link:hover { border-color: #76dfc8; }
 .thread-label { display: block; margin-top: 32px; }
 button:disabled { opacity: .5; cursor: default; }
 [role="alert"] { color: #ffaaa4; }
+
+.context-id { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.context-id-compact { margin-top: 12px; padding-top: 12px; border-top: 1px solid #263337; width: 100%; }
+.context-id-code { padding: 6px 10px; background: #111a1d; border: 1px solid #2b393d; border-radius: 8px; font: 12px/1.5 ui-monospace, monospace; color: #c8d4d8; user-select: all; overflow-wrap: anywhere; }
+.copy-id-button { margin-top: 0; }
+.copy-id-feedback { font-size: 12px; color: #71dbc5; min-height: 1em; }
+.context-id-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.context-id-label { font: 600 12px/1.2 ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; color: #71dbc5; }
