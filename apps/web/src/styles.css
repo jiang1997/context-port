@@ -44,6 +44,9 @@ p { color: #91a2a7; line-height: 1.65; }
 .user-logout { background: transparent; border: 1px solid #2b393d; border-radius: 8px; padding: 7px 10px; color: #a8b5b9; font-size: 13px; cursor: pointer; }
 .user-logout:hover { border-color: #76dfc8; color: #76dfc8; }
 .user-logout:disabled { opacity: 0.5; cursor: default; }
+.key-banner code { display: block; word-break: break-all; padding: 10px; background: #111a1d; border: 1px solid #2b393d; border-radius: 8px; font-size: 12px; }
+.key-row { display: flex; align-items: flex-start; gap: 8px; margin: 8px 0; }
+.key-revoked { opacity: 0.55; }
 .auth-loading { color: #5a6a6f; font-size: 13px; }
 .button { color: #f0f4f5; }
 

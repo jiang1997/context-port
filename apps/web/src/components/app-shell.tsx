@@ -20,6 +20,9 @@ export function AppShell({ children }: PropsWithChildren) {
           <NavLink className="button button-small" to="/contexts/new">
             创建 Context
           </NavLink>
+          <NavLink className="button button-small" to="/keys">
+            MCP Keys
+          </NavLink>
           <AuthStatus />
         </nav>
       </header>
