@@ -71,7 +71,7 @@ Vercel 已在环境变量更新后重新部署正式站点。
 
 ## 5. 部署顺序与验证
 
-当前已完成：PR #1 合并、GitHub CI、Neon 空库迁移、Render/Vercel 部署；正式域名匿名 `/auth/me` 返回空用户、未登录 `/contexts` 返回 `401`、Google 授权跳转使用正式回调；所有者在 Chrome 中登录成功且刷新后保持会话。尚需第二个 Google 账号的真实跨用户验证、退出/重新登录及 Safari/Firefox 验收。正式发布事项按用户要求暂缓。
+当前已完成：PR #1 合并、GitHub CI、Neon 空库迁移、Render/Vercel 部署；正式域名匿名 `/auth/me` 返回空用户、未登录 `/contexts` 返回 `401`、Google 授权跳转使用正式回调；所有者在 Chrome 中登录、刷新、退出、重新登录均成功。尚需第二个 Google 账号的真实跨用户验证及 Safari/Firefox 验收。正式发布事项按用户要求暂缓。
 
 1. 在不触发 Render 正式服务部署的分支上提交第 0 节改动并通过 CI；Google OAuth 暂用同一 Testing 项目/客户端验证本地和正式域名。不要先推送到 Render 监听的正式分支；Testing 状态本身不限制本应用的注册者。
 2. 新建 Neon 空库，用 direct 连接串执行全部 migration 并核对表和约束。
