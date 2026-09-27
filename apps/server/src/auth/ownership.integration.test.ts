@@ -26,9 +26,6 @@ const config = vi.hoisted(() => ({
   NODE_ENV: 'test',
   DATABASE_URL: 'unused',
   DEPLOYMENT_MODE: 'network',
-  API_AUTH_ENABLED: true,
-  API_AUTH_TOKEN: 'test-token-at-least-24-characters',
-  API_AUTH_LEGACY_USER_ID: undefined as string | undefined,
   WEB_ORIGIN: 'http://localhost:5173',
   WEB_EXTRA_ORIGINS: '',
 }));
@@ -104,24 +101,9 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('per-user data isolation (phase 
       .send({ title: 'CSRF blocked', createdByType: 'human' }).expect(403);
   });
 
-  it('scopes the legacy shared token to its bound owner only', async () => {
-    const alice = await createUser('iso-legacy-alice', 'legacy-alice@example.com');
-    const bob = await createUser('iso-legacy-bob', 'legacy-bob@example.com');
-    await bundle.db.insert(contexts).values({ title: 'Alice legacy', content: '', createdByType: 'human', updatedByType: 'human', ownerUserId: alice.id });
-    await bundle.db.insert(contexts).values({ title: 'Bob legacy', content: '', createdByType: 'human', updatedByType: 'human', ownerUserId: bob.id });
-
-    config.API_AUTH_LEGACY_USER_ID = alice.id;
-    const bound = await request(app.getHttpServer()).get('/api/v1/contexts')
-      .set('Authorization', `Bearer ${config.API_AUTH_TOKEN}`).expect(200);
-    expect(bound.body.map((row: { title: string }) => row.title)).toEqual(['Alice legacy']);
-
-    config.API_AUTH_LEGACY_USER_ID = undefined;
-    const unbound = await request(app.getHttpServer()).get('/api/v1/contexts')
-      .set('Authorization', `Bearer ${config.API_AUTH_TOKEN}`).expect(200);
-    expect(unbound.body).toHaveLength(0);
-
+  it('rejects the old shared token', async () => {
     await request(app.getHttpServer()).get('/api/v1/contexts')
-      .set('Authorization', 'Bearer wrong-token-value-24-chars!').expect(401);
+      .set('Authorization', 'Bearer test-token-at-least-24-characters').expect(401);
   });
 
   it('resolves personal MCP keys to their owner and honors revocation', async () => {
@@ -165,10 +147,8 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('per-user data isolation (phase 
     await client.close();
   });
 
-  it('keeps anonymous MCP blocked while ownership rows stay non-null only for new data', async () => {
-    await bundle.db.insert(contexts).values({ title: 'Orphan row', content: '', createdByType: 'human', updatedByType: 'human' });
-    await bundle.db.insert(contexts).values({ title: 'Owned row', content: '', createdByType: 'human', updatedByType: 'human', ownerUserId: (await createUser('iso-orphan', 'orphan@example.com')).id });
-    const all = await bundle.db.select().from(contexts).orderBy(contexts.title);
-    expect(all.map(row => row.title)).toEqual(['Orphan row', 'Owned row']);
+  it('requires ownership at the database layer', async () => {
+    await expect(bundle.db.execute(sql`INSERT INTO contexts (title, created_by_type, updated_by_type) VALUES ('Orphan', 'human', 'human')`))
+      .rejects.toThrow();
   });
 });

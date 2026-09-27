@@ -54,10 +54,11 @@ Agent 创建时传 `createdByType: "agent"`，可用 `createdBy` 标记名称。
 读取或创建 Thread 时提供 `contextId`，读取 Thread 额外提供 `threadId`。
 创建没有幂等键；调用超时后先检查列表，避免盲目重试造成重复。
 
-本地默认无鉴权且仅监听回环地址。网络模式要求设置 `DEPLOYMENT_MODE=network`、
-`API_AUTH_ENABLED=true` 和至少 24 字符的 `API_AUTH_TOKEN`，REST/MCP 都检查
-`Authorization: Bearer <token>`。当前 Web 未提供 Token 登录界面，MVP 面向本地使用。
-创建者名称是调用方声明，不代表经过认证的个人身份；尚无 SaaS 租户隔离。
+本地和网络模式下，REST/MCP 均要求经过验证的 Google 浏览器会话或个人 API Key。
+本地 Web 登录需在 `.env` 设置 `GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET` 和
+`PUBLIC_BASE_URL=http://localhost:5173`，并在 Google 登记
+`http://localhost:5173/api/v1/auth/google/callback`。创建者名称仍由调用方填写，
+不作为权限身份。`0004` 迁移面向空数据库，不回填旧 Context。
 
 ## 验证
 

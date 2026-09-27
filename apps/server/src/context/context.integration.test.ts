@@ -2,8 +2,9 @@ import 'reflect-metadata';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { Test } from '@nestjs/testing';
-import { Global, Module, type INestApplication } from '@nestjs/common';
-import { createDatabase, revisions } from '@contextport/db';
+import { Global, Module, type ExecutionContext, type INestApplication } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { createDatabase, revisions, users } from '@contextport/db';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { eq, sql } from 'drizzle-orm';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -15,19 +16,30 @@ import { DATABASE } from '../db/db.module.js';
 import { ContextModule } from './context.module.js';
 import { McpModule } from '../mcp/mcp.module.js';
 import { HttpExceptionFilter } from '../common/filters/http-exception.filter.js';
+import { identity } from '../auth/auth-identity.js';
 
 // Only use a dedicated disposable database; migrations never run against DATABASE_URL here.
 describe.skipIf(!process.env.TEST_DATABASE_URL)('Context MVP integration', () => {
   let app: INestApplication;
   let bundle: ReturnType<typeof createDatabase>;
   let client: Client;
+  let testUserId: string;
   beforeAll(async () => {
     bundle = createDatabase(process.env.TEST_DATABASE_URL!);
     await migrate(bundle.db, { migrationsFolder: fileURLToPath(new URL('../../../../packages/db/migrations', import.meta.url)) });
+    await bundle.db.execute(sql`TRUNCATE revisions, threads, contexts, api_keys, sessions, users`);
+    const [testUser] = await bundle.db.insert(users).values({ googleSub: 'context-integration', email: 'context@example.com' }).returning();
+    testUserId = testUser!.id;
     @Global()
     @Module({ providers: [{ provide: DATABASE, useValue: bundle.db }], exports: [DATABASE] })
     class TestDatabaseModule {}
-    const module = await Test.createTestingModule({ imports: [TestDatabaseModule, ContextModule, McpModule] }).compile();
+    const module = await Test.createTestingModule({
+      imports: [TestDatabaseModule, ContextModule, McpModule],
+      providers: [{ provide: APP_GUARD, useValue: { canActivate: (context: ExecutionContext) => {
+        context.switchToHttp().getRequest().authIdentity = identity(testUserId, 'session');
+        return true;
+      } } }],
+    }).compile();
     app = module.createNestApplication();
     app.useGlobalFilters(new HttpExceptionFilter());
     await app.listen(0, '127.0.0.1');
