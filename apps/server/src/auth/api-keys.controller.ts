@@ -52,7 +52,7 @@ export class ApiKeysController {
 
   private assertCsrf(req: Request): void {
     const cookies = parseCookies(req.headers.cookie);
-    if (req.headers[CSRF_HEADER] !== cookies[CSRF_COOKIE]) {
+    if (!cookies[CSRF_COOKIE] || req.headers[CSRF_HEADER] !== cookies[CSRF_COOKIE]) {
       throw new ForbiddenException('CSRF token is missing or invalid.');
     }
   }

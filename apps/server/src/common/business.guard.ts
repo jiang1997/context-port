@@ -58,7 +58,7 @@ export class BusinessGuard implements CanActivate {
   private assertCsrf(req: Request): void {
     if (SAFE_METHODS.has(req.method)) return;
     const cookies = parseCookies(req.headers.cookie);
-    if (cookies[CSRF_COOKIE] === undefined || req.headers[CSRF_HEADER] !== cookies[CSRF_COOKIE]) {
+    if (!cookies[CSRF_COOKIE] || req.headers[CSRF_HEADER] !== cookies[CSRF_COOKIE]) {
       throw new ForbiddenException('CSRF token is missing or invalid.');
     }
   }
