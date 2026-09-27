@@ -3,11 +3,14 @@ import { ForbiddenException, Injectable, UnauthorizedException, type CanActivate
 import type { Request } from 'express';
 import { getEnvironment, getAllowedOrigins } from '../config/environment.js';
 
+/** Browser session endpoints manage their own cookies and must stay public. */
+const PUBLIC_PATH_PREFIXES = ['/health/', '/api/v1/auth/'];
+
 @Injectable()
 export class BusinessGuard implements CanActivate {
   canActivate(context: ExecutionContext) {
     const req = context.switchToHttp().getRequest<Request>();
-    if (req.path.startsWith('/health/')) return true;
+    if (PUBLIC_PATH_PREFIXES.some(prefix => req.path.startsWith(prefix))) return true;
     const env = getEnvironment();
     if (req.headers.origin && !getAllowedOrigins(env).includes(req.headers.origin)) throw new ForbiddenException('Origin is not allowed.');
     if (!env.API_AUTH_ENABLED) {
