@@ -30,18 +30,19 @@ export function ContextListPage() {
   const [offset, setOffset] = useState(0);
   const auth = useAuthSession();
   const query = useQuery({ queryKey: ['contexts', offset], queryFn: () => apiRequest<ContextSummary[]>(`/contexts?limit=20&offset=${offset}`), enabled: Boolean(auth.data?.user), refetchInterval: 5000 });
+  const contexts = auth.data?.user ? query.data : undefined;
   return <div className="page"><span className="eyebrow">共同维护的知识空间</span><h1>Contexts</h1>
     <p>一个 Context 保存整体背景，Thread 整理其中的具体话题。</p>
-    <ErrorMessage error={auth.error ?? query.error} />
+    <ErrorMessage error={auth.error ?? (auth.data?.user ? query.error : null)} />
     {auth.isPending && <p>正在检查登录状态…</p>}
     {!auth.isPending && !auth.error && !auth.data?.user && <p>请先使用右上角的 Google 登录。</p>}
     {auth.data?.user && query.isPending && <p>正在加载…</p>}
-    {query.data?.length === 0 && <p>这里还没有 Context。创建一个，开始与 Agent 共享上下文。</p>}
-    <div className="document-list">{query.data?.map(item => <Link className="panel document-card" to={`/contexts/${item.id}`} key={item.id}>
+    {contexts?.length === 0 && <p>这里还没有 Context。创建一个，开始与 Agent 共享上下文。</p>}
+    <div className="document-list">{contexts?.map(item => <Link className="panel document-card" to={`/contexts/${item.id}`} key={item.id}>
       <h2>{item.title}</h2><p>{item.createdBy ?? item.createdByType} · {new Date(item.createdAt).toLocaleString()}</p>
     </Link>)}</div>
     <div className="form-actions"><button className="button" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 20))}>上一页</button>
-    <button className="button" disabled={!query.data || query.data.length < 20} onClick={() => setOffset(offset + 20)}>下一页</button></div>
+    <button className="button" disabled={!contexts || contexts.length < 20} onClick={() => setOffset(offset + 20)}>下一页</button></div>
   </div>;
 }
 export function ContextCreatePage() {
