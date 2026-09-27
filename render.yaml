@@ -41,3 +41,14 @@ services:
         sync: false
       - key: DATABASE_URL
         sync: false
+      # Google login (phase 1 of docs/google-login-plan.md). Set all three in
+      # the Render dashboard; the OAuth client must register
+      # ${PUBLIC_BASE_URL}/api/v1/auth/google/callback as a redirect URI.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: COOKIE_SECURE
+        value: auto

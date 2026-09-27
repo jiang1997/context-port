@@ -24,6 +24,13 @@ const EnvironmentSchema = z
       .default('false')
       .transform((value) => value === 'true'),
     API_AUTH_TOKEN: z.preprocess(value => value === '' ? undefined : value, z.string().min(24).optional()),
+    /** Google OAuth Web client. Auth is optional locally so existing flows keep working. */
+    GOOGLE_CLIENT_ID: z.preprocess(value => value === '' ? undefined : value, z.string().optional()),
+    GOOGLE_CLIENT_SECRET: z.preprocess(value => value === '' ? undefined : value, z.string().optional()),
+    /** Public base URL of this server for building the OAuth redirect URI. */
+    PUBLIC_BASE_URL: z.preprocess(value => value === '' ? undefined : value, z.string().url().optional()),
+    /** Secure cookie flag: 'auto' enables it outside local development. */
+    COOKIE_SECURE: z.enum(['true', 'false', 'auto']).default('auto'),
     LOG_LEVEL: z.preprocess(value => value === 'info' ? 'log' : value, z.enum(['error', 'warn', 'log', 'debug', 'verbose']).default('log')),
   })
   .superRefine((value, context) => {
@@ -48,9 +55,23 @@ const EnvironmentSchema = z
         message: 'Unauthenticated local mode must bind to 127.0.0.1.',
       });
     }
+    const googleKeys = [value.GOOGLE_CLIENT_ID, value.GOOGLE_CLIENT_SECRET, value.PUBLIC_BASE_URL];
+    if (googleKeys.some(Boolean) && !googleKeys.every(Boolean)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['GOOGLE_CLIENT_ID'],
+        message: 'GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and PUBLIC_BASE_URL must be set together.',
+      });
+    }
   });
 
 export type Environment = z.infer<typeof EnvironmentSchema>;
+
+/** Session cookies are Secure unless explicitly disabled or in local dev. */
+export function usesSecureCookies(environment: Environment): boolean {
+  if (environment.COOKIE_SECURE === 'auto') return environment.DEPLOYMENT_MODE === 'network';
+  return environment.COOKIE_SECURE === 'true';
+}
 
 /** Primary origin plus comma-separated extras (e.g. Vercel preview deployments). */
 export function getAllowedOrigins(environment: Environment): string[] {

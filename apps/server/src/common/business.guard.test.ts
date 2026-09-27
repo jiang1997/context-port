@@ -34,4 +34,12 @@ describe('shared REST/MCP protection', () => {
       expect(guard.canActivate(request(path, { authorization: `Bearer ${config.API_AUTH_TOKEN}` }))).toBe(true);
     }
   });
+  it('leaves browser session endpoints public even when auth is enabled', () => {
+    config.API_AUTH_ENABLED = true;
+    const guard = new BusinessGuard();
+    expect(guard.canActivate(request('/api/v1/auth/google/start'))).toBe(true);
+    expect(guard.canActivate(request('/api/v1/auth/google/callback'))).toBe(true);
+    expect(guard.canActivate(request('/api/v1/auth/me'))).toBe(true);
+    expect(() => guard.canActivate(request('/api/v1/contexts'))).toThrow();
+  });
 });
