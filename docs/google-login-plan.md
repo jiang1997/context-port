@@ -1,6 +1,6 @@
 # ContextPort Google 登录与开放注册计划
 
-状态：实施中。阶段 0/1/2/3 代码已落地：数据隔离与会话（阶段 2）、Web 登录状态/退出/登录按钮（替换手输 Token）、`VITE_API_BASE_URL` 同源 `/api/v1`（Vite 开发代理 + 根 `vercel.json` 将 `/api/*` 转发到 Render，置于 SPA 回退之前）。生产浏览器矩阵验证仍属上线步骤。原有 Context 数据不保留；阶段 4 改为空数据库上线，阶段 5 尚未开始。更新日期：2026-09-27。
+状态：阶段 0–4 已部署到空 Neon 数据库；正式域名所有者 Google 登录、刷新、退出及重新登录已验证。第二账号跨用户验证和 Safari/Firefox 验收待完成；阶段 5（正式发布）暂缓。原有 Context 数据未复制。更新日期：2026-09-27。
 
 ## 目标与默认决定
 
@@ -44,7 +44,7 @@
 
 ### 3. 数据归属和接口权限
 
-- `contexts.owner_user_id` 引用 `users.id`。当前迁移中该字段可为空；空库上线前增加后续 SQL migration，将其设为 `NOT NULL`，并保留 `(owner_user_id, created_at, id)` 索引。Thread 和 Revision 通过父 Context 判断归属；写入 Thread 时在同一个事务里锁定并检查父 Context。
+- `contexts.owner_user_id` 引用 `users.id`，已通过后续 SQL migration 设为 `NOT NULL`，并保留 `(owner_user_id, created_at, id)` 索引。Thread 和 Revision 通过父 Context 判断归属；写入 Thread 时在同一个事务里锁定并检查父 Context。
 - REST 的列表、详情、Thread 详情、创建 Context、创建 Thread 都以服务端认证出的用户 ID 为参数。按 ID 访问他人记录返回 `404`，避免泄露记录是否存在。
 - `ContextService` 的公共方法必须要求用户 ID，REST 和 MCP 共用这套校验。不能只在 Controller 或前端做过滤。
 - 仓库已移除 `API_AUTH_TOKEN` 和 `API_AUTH_LEGACY_USER_ID` 的业务入口及必填校验；REST/MCP 始终要求个人 API Key 或浏览器会话。上线前仍须验证旧 Token 在部署后失效。
