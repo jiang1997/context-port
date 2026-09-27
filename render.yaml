@@ -20,7 +20,7 @@ services:
     # (or right after) each deploy that changes the schema:
     #   DATABASE_URL=<Neon DIRECT (unpooled) connection string> pnpm db:migrate
     healthCheckPath: /health/live
-    autoDeploy: true
+    autoDeployTrigger: checksPass
     envVars:
       - key: NODE_VERSION
         value: 24
