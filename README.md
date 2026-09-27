@@ -31,9 +31,12 @@ Creation accepts `title`, optional `content`, `createdByType` (`human` or `agent
 optional `createdBy`. Thread operations require `contextId`; reading also requires `threadId`.
 Context reads return the Thread index without Thread bodies.
 
-Local unauthenticated mode only binds to loopback. Network mode requires the same Bearer
-Token on REST and MCP. The Web has no token login UI yet. Actor names are caller-supplied
-labels, not authenticated user identities. This is not a multi-tenant SaaS release.
+REST and MCP require a verified Google browser session or a personal API key in both
+local and network modes. To use the local Web, set `GOOGLE_CLIENT_ID`,
+`GOOGLE_CLIENT_SECRET`, and `PUBLIC_BASE_URL=http://localhost:5173` in `.env`, and
+register `http://localhost:5173/api/v1/auth/google/callback` with Google. Actor names
+remain caller-supplied labels, not permission identities. The `0004` migration requires
+an empty database; it does not backfill old Contexts.
 
 ## Validation
 
