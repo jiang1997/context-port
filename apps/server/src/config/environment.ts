@@ -19,13 +19,6 @@ const EnvironmentSchema = z
     WEB_ORIGIN: z.string().url().default('http://localhost:5173'),
     WEB_EXTRA_ORIGINS: z.string().default(''),
     DEPLOYMENT_MODE: z.enum(['local', 'network']).default('local'),
-    API_AUTH_ENABLED: z
-      .enum(['true', 'false'])
-      .default('false')
-      .transform((value) => value === 'true'),
-    API_AUTH_TOKEN: z.preprocess(value => value === '' ? undefined : value, z.string().min(24).optional()),
-    /** Transitional: binds the shared token to this internal user during migration. */
-    API_AUTH_LEGACY_USER_ID: z.preprocess(value => value === '' ? undefined : value, z.string().uuid().optional()),
     /** Google OAuth Web client. Auth is optional locally so existing flows keep working. */
     GOOGLE_CLIENT_ID: z.preprocess(value => value === '' ? undefined : value, z.string().optional()),
     GOOGLE_CLIENT_SECRET: z.preprocess(value => value === '' ? undefined : value, z.string().optional()),
@@ -36,25 +29,11 @@ const EnvironmentSchema = z
     LOG_LEVEL: z.preprocess(value => value === 'info' ? 'log' : value, z.enum(['error', 'warn', 'log', 'debug', 'verbose']).default('log')),
   })
   .superRefine((value, context) => {
-    if (value.DEPLOYMENT_MODE === 'network' && !value.API_AUTH_ENABLED) {
-      context.addIssue({
-        code: 'custom',
-        path: ['API_AUTH_ENABLED'],
-        message: 'Network mode requires API authentication.',
-      });
-    }
-    if (value.API_AUTH_ENABLED && !value.API_AUTH_TOKEN) {
-      context.addIssue({
-        code: 'custom',
-        path: ['API_AUTH_TOKEN'],
-        message: 'API_AUTH_TOKEN is required when authentication is enabled.',
-      });
-    }
-    if (value.DEPLOYMENT_MODE === 'local' && value.HOST !== '127.0.0.1' && !value.API_AUTH_ENABLED) {
+    if (value.DEPLOYMENT_MODE === 'local' && value.HOST !== '127.0.0.1') {
       context.addIssue({
         code: 'custom',
         path: ['HOST'],
-        message: 'Unauthenticated local mode must bind to 127.0.0.1.',
+        message: 'Local mode must bind to 127.0.0.1.',
       });
     }
     const googleKeys = [value.GOOGLE_CLIENT_ID, value.GOOGLE_CLIENT_SECRET, value.PUBLIC_BASE_URL];

@@ -16,7 +16,7 @@ const documentColumns = () => ({
 });
 export const contexts = pgTable('contexts', {
   ...documentColumns(),
-  ownerUserId: uuid('owner_user_id').references(() => users.id, { onDelete: 'restrict' }),
+  ownerUserId: uuid('owner_user_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
 }, t => [
   check('contexts_version_positive', sql`${t.version} > 0`),
   check('contexts_actors_valid', sql`${t.createdByType} in ('human', 'agent') and ${t.updatedByType} in ('human', 'agent')`),

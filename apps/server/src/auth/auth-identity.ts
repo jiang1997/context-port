@@ -1,11 +1,11 @@
 import type { Request } from 'express';
 
 /** How the request identity was established. */
-export type IdentitySource = 'session' | 'api-key' | 'legacy-token' | 'anonymous';
+export type IdentitySource = 'session' | 'api-key';
 
 export interface AuthIdentity {
-  /** Internal user ID; undefined only for the transitional anonymous mode. */
-  userId?: string | undefined;
+  /** Internal user ID resolved from a verified credential. */
+  userId: string;
   source: IdentitySource;
 }
 
@@ -19,6 +19,6 @@ declare global {
   }
 }
 
-export function identity(userId: string | undefined, source: IdentitySource): AuthIdentity {
-  return userId === undefined ? { source } : { userId, source };
+export function identity(userId: string, source: IdentitySource): AuthIdentity {
+  return { userId, source };
 }

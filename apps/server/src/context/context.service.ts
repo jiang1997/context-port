@@ -9,15 +9,13 @@ type Source = 'rest' | 'mcp';
 /**
  * All public methods take the caller's user ID (from the server-side
  * identity, never client input) and scope every query to it. Cross-user
- * access returns 404 so record existence is not leaked. A userId of
- * undefined is only the transitional pre-migration mode (legacy token or
- * local dev) where pre-ownership rows stay readable.
+ * access returns 404 so record existence is not leaked.
  */
 @Injectable()
 export class ContextService {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
-  async list(userId: string | undefined, input: { limit?: number; offset?: number } = {}) {
+  async list(userId: string, input: { limit?: number; offset?: number } = {}) {
     const { limit, offset } = ListContextsSchema.parse(input);
     const { content: _, ...summary } = getTableColumns(contexts);
     return this.db.select(summary).from(contexts)
@@ -25,7 +23,7 @@ export class ContextService {
       .orderBy(desc(contexts.createdAt), desc(contexts.id)).limit(limit).offset(offset);
   }
 
-  async get(userId: string | undefined, id: string) {
+  async get(userId: string, id: string) {
     const [context] = await this.db.select().from(contexts)
       .where(and(eq(contexts.id, id), this.ownership(userId)));
     if (!context) throw new NotFoundException({ code: 'CONTEXT_NOT_FOUND', message: 'Context not found.' });
@@ -36,11 +34,11 @@ export class ContextService {
     return { ...context, threads: index };
   }
 
-  async getThread(userId: string | undefined, contextId: string, threadId: string) {
+  async getThread(userId: string, contextId: string, threadId: string) {
     // Threads inherit ownership through their parent Context, so ownership
     // checks join the parent row rather than trusting the thread alone.
     const filters = [eq(threads.contextId, contextId), eq(threads.id, threadId)];
-    filters.push(userId === undefined ? isNull(contexts.ownerUserId) : eq(contexts.ownerUserId, userId));
+    filters.push(eq(contexts.ownerUserId, userId));
     const [row] = await this.db.select({ thread: threads })
       .from(threads)
       .innerJoin(contexts, eq(threads.contextId, contexts.id))
@@ -49,11 +47,11 @@ export class ContextService {
     return row.thread;
   }
 
-  async create(userId: string | undefined, input: CreateContextInput, source: Source) {
+  async create(userId: string, input: CreateContextInput, source: Source) {
     const data = CreateContextSchema.parse(input);
     return this.db.transaction(async tx => {
       const [context] = await tx.insert(contexts).values({ ...data,
-        ...(userId === undefined ? {} : { ownerUserId: userId }),
+        ownerUserId: userId,
         updatedByType: data.createdByType, updatedBy: data.createdBy ?? null }).returning();
       if (!context) throw new Error('Context insert failed.');
       await tx.insert(revisions).values({ contextId: context.id, version: context.version,
@@ -63,7 +61,7 @@ export class ContextService {
     });
   }
 
-  async createThread(userId: string | undefined, contextId: string, input: CreateContextInput, source: Source) {
+  async createThread(userId: string, contextId: string, input: CreateContextInput, source: Source) {
     const data = CreateContextSchema.parse(input);
     return this.db.transaction(async tx => {
       const [parent] = await tx.select({ id: contexts.id }).from(contexts)
@@ -79,9 +77,7 @@ export class ContextService {
     });
   }
 
-  private ownership(userId: string | undefined) {
-    // Pre-migration mode (anonymous/legacy token) only reaches ownerless rows;
-    // owned rows are invisible until phase 4 binds the legacy token to an owner.
-    return userId === undefined ? isNull(contexts.ownerUserId) : eq(contexts.ownerUserId, userId);
+  private ownership(userId: string) {
+    return eq(contexts.ownerUserId, userId);
   }
 }

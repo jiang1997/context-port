@@ -1,12 +1,12 @@
 # ContextPort Google 登录与开放注册计划
 
-状态：实施中。阶段 0/1/2/3 代码已落地：数据隔离与会话（阶段 2）、Web 登录状态/退出/登录按钮（替换手输 Token）、`VITE_API_BASE_URL` 同源 `/api/v1`（Vite 开发代理 + 根 `vercel.json` 将 `/api/*` 转发到 Render，置于 SPA 回退之前）。生产浏览器矩阵验证（真实 Vercel/Render 上确认 Cookie 转发）仍属上线步骤。阶段 4/5 未开始。更新日期：2026-09-27。
+状态：实施中。阶段 0/1/2/3 代码已落地：数据隔离与会话（阶段 2）、Web 登录状态/退出/登录按钮（替换手输 Token）、`VITE_API_BASE_URL` 同源 `/api/v1`（Vite 开发代理 + 根 `vercel.json` 将 `/api/*` 转发到 Render，置于 SPA 回退之前）。生产浏览器矩阵验证仍属上线步骤。原有 Context 数据不保留；阶段 4 改为空数据库上线，阶段 5 尚未开始。更新日期：2026-09-27。
 
 ## 目标与默认决定
 
 - 用户用 Google 账号首次登录时自动创建 ContextPort 账号，之后可再次登录。
 - 每位用户默认只能列出、读取、创建自己的 Context 和其下的 Thread。
-- 现有生产数据归到项目所有者账号；归属由明确的 Google 账号确认，不能按“第一个登录的人”自动认领。
+- 使用新的空 Neon 数据库上线，不复制现有 Context；新用户和项目所有者均从空工作区开始。
 - Web 登录与 MCP 客户端鉴权分开处理。任何旧的共享 Token 都不能获得跨用户读写权限。
 - Google 登录仅请求 `openid email profile`；不申请 Google Drive 等业务数据权限。
 
@@ -30,7 +30,7 @@
 
 ### 1. 登录和会话
 
-1. 在 Google Cloud 创建 Web OAuth 客户端，登记正式站点和本地开发回调地址，设置 OAuth 品牌信息。生产环境配置允许真实用户登录，而非只允许测试账号。
+1. Testing 阶段可先在一个 Google Cloud 项目/客户端登记本地和正式站点回调，用两个 Google 账号验收。当前只请求 `openid email profile`，Google 的 Testing 状态与 Test users 名单不会限制其他账号登录。正式发布前，建立仅含正式域名回调的独立生产项目/客户端，更新 Render 凭证并验证回调，再切为 In production。
 2. NestJS 提供 `GET /api/v1/auth/google/start`、`GET /api/v1/auth/google/callback`、`GET /api/v1/auth/me`、`POST /api/v1/auth/logout`。用授权码流程；回调验证一次性 `state`，服务端交换授权码并验证 ID Token 的签名、`aud`、`iss`、`exp`。使用 Google `sub` 作为外部账号唯一键，邮箱仅用于展示和联系。
 3. Neon 新增 `users` 与 `sessions`。`users` 保存内部 UUID、Google `sub`、邮箱、名称、头像、创建时间；`sessions` 保存随机会话凭证的哈希、用户 ID、过期与撤销时间。首次登录按 `sub` 幂等创建账号；后续登录更新可变的展示信息。
 4. 登录成功后只向浏览器下发应用会话 Cookie：`HttpOnly; Secure; SameSite=Lax; Path=/`，不把 Google ID Token、Google access token 或应用会话存入 `localStorage`。会话到期或退出后须重新登录；退出撤销服务端会话。
@@ -44,10 +44,10 @@
 
 ### 3. 数据归属和接口权限
 
-- `contexts.owner_user_id` 引用 `users.id`，最终为 `NOT NULL`，建立 `(owner_user_id, created_at, id)` 索引。Thread 和 Revision 通过父 Context 判断归属；写入 Thread 时在同一个事务里锁定并检查父 Context。
+- `contexts.owner_user_id` 引用 `users.id`。当前迁移中该字段可为空；空库上线前增加后续 SQL migration，将其设为 `NOT NULL`，并保留 `(owner_user_id, created_at, id)` 索引。Thread 和 Revision 通过父 Context 判断归属；写入 Thread 时在同一个事务里锁定并检查父 Context。
 - REST 的列表、详情、Thread 详情、创建 Context、创建 Thread 都以服务端认证出的用户 ID 为参数。按 ID 访问他人记录返回 `404`，避免泄露记录是否存在。
 - `ContextService` 的公共方法必须要求用户 ID，REST 和 MCP 共用这套校验。不能只在 Controller 或前端做过滤。
-- 逐步移除 `API_AUTH_TOKEN` 的业务入口。过渡期如必须保留旧 Token，仅将其绑定到已确认的所有者账号并设定短期撤销期限；不能让它代表“管理员可读所有用户数据”。
+- 仓库已移除 `API_AUTH_TOKEN` 和 `API_AUTH_LEGACY_USER_ID` 的业务入口及必填校验；REST/MCP 始终要求个人 API Key 或浏览器会话。上线前仍须验证旧 Token 在部署后失效。
 
 ### 4. MCP 接入
 
@@ -57,25 +57,25 @@
 
 | 阶段 | 工作 | 完成判据 |
 | --- | --- | --- |
-| 0. 准备 | 确认项目所有者的 Google 账号；创建 OAuth 客户端；在本地/预览配置密钥与回调；备份 Neon | 凭证只在部署平台的环境变量中，备份可恢复 |
+| 0. 准备 | 确认两个验收用 Google 账号；先用一个 Testing OAuth 项目/客户端登记本地及正式回调；创建空 Neon 数据库 | 两个账号可登录；新库无旧记录；不依赖 Test users 名单限制访问 |
 | 1. 数据与会话 | 增加 `users`、`sessions`、Context 归属字段和索引；实现 Google 回调、会话及退出 | 首次/再次登录、过期、撤销、错误回调测试通过 |
 | 2. 权限 | REST 和 MCP 服务改为按用户访问；加入个人 MCP Key；移除全局共享权限 | 两个测试账号互相无法列出、读取或写入对方数据；旧 Token 不可跨用户访问 |
 | 3. Web 与入口 | Vercel API 转发、登录页/按钮、登录状态和退出，替换手输 Token | 正式域名完整登录；刷新后保持会话；退出后失去访问权；主流浏览器验证通过 |
-| 4. 生产迁移 | 先部署兼容新旧 Schema 的代码；所有者完成 Google 登录并取得内部用户 ID；将旧 Context 明确归给该 ID；检查无空归属后设置 `NOT NULL`，再撤销共享 Token | 旧数据仅所有者可见，新账号初始为空，历史 Thread/Revision 仍可读 |
-| 5. 开放注册 | 在生产环境启用所有 Google 账号登录，监测认证错误、权限拒绝和数据库负载 | 新用户可独立创建/读取 Context；匿名请求为 `401`；跨用户请求为 `404` |
+| 4. 空库上线 | 共享 Token 移除与 `owner_user_id NOT NULL` 迁移已在本地完成；用 Neon direct 连接对空库执行全部迁移；切换 Render 到新库后部署 | 新库业务表为空；正式域名登录可用；旧 Token 失效；每个新 Context 都有所有者 |
+| 5. 开放注册 | 建立独立生产 OAuth 项目/客户端并移除本地回调，验证后发布给所有 Google 账号；监测认证错误、权限拒绝和数据库负载 | 新用户可独立创建/读取 Context；匿名请求为 `401`；跨用户请求为 `404` |
 
-当前 Render 免费套餐没有 `preDeployCommand`，迁移不能假设会随部署自动执行。阶段 4 应使用 Neon 直连地址运行经 CI 验证的迁移，并采用“先增字段、回填、再收紧约束”的顺序；每步记录执行结果。任何会使旧服务无法启动的约束变化，都应安排在兼容版本已经上线后。
+当前 Render 免费套餐没有 `preDeployCommand`。阶段 4 先用新 Neon 数据库的 direct 连接串运行经 CI 验证的全套建表迁移，再将 Render 的 pooled `DATABASE_URL` 指向该新库并部署。原数据库暂时保留供核对，但不参与新系统。具体顺序见 `docs/production-env-checklist.md`。
 
 ## 验证与回退
 
-- CI：类型检查、构建、单元测试、一次性 PostgreSQL 集成测试；覆盖 Google 身份校验失败、会话撤销、CSRF、所有 REST/MCP 路由的跨用户访问，以及迁移后旧数据归属。
-- 预览环境：使用独立 Google OAuth 回调配置和可丢弃数据库；验证 Vercel 转发与 Cookie。不要将生产 Neon 数据复制到公开预览环境。
-- 生产冒烟测试：匿名、所有者、新用户三种身份；登录、刷新、退出、重新登录、Context/Thread/MCP 访问；检查现有数据数量和归属。
-- 回退：保留 Neon 迁移前备份；应用部署可回退到兼容新 Schema 的版本。开放注册后不得回退到只有共享 Token 且无用户过滤的旧版本，否则会重新暴露所有用户数据。
+- CI：类型检查、构建、单元测试、一次性 PostgreSQL 集成测试；覆盖 Google 身份校验失败、会话撤销、CSRF、所有 REST/MCP 路由的跨用户访问，以及从空库执行全部迁移。
+- 预览环境：当前不验收 Google 登录；如需支持 Preview 域名，另配对应回调和可丢弃数据库，验证 Vercel 转发与 Cookie。不要将生产 Neon 数据复制到公开预览环境。
+- 生产冒烟测试：匿名、所有者、新用户三种身份；登录、刷新、退出、重新登录、Context/Thread/MCP 访问；确认新库起始为空且每条新记录有归属。
+- 回退：旧 Neon 数据库暂时保留。新用户写入新库后，切回旧库会丢失新数据；应用只可回退到保留用户隔离的版本。开放注册后不得回退到只有共享 Token 且无用户过滤的旧版本。
 
 ## 需要确定的事项
 
-1. **项目所有者的 Google 账号**：用于将现有 Context 指定给正确的人；迁移脚本应按经验证的 Google `sub` 或内部用户 ID 操作，不能仅凭可变化的邮箱自动匹配。
+1. **验收账号**：准备所有者及第二个 Google 账号，用于验证新用户注册和隔离；因只请求基础身份范围，无需加入 Test users。若要限制公测人数，需要额外的应用层允许名单。
 2. **注册范围**：本计划默认所有 Google 账号均可注册、每人数据私有。如先试运行，可加邮箱邀请名单开关；不改变底层数据隔离设计。
 3. **域名**：默认先用现有 Vercel 域名和 API 转发。若已有自有域名，可以直接规划同站点 Web/API 子域名。
 

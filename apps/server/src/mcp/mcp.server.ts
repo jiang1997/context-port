@@ -3,7 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { CreateContextSchema, ListContextsSchema, UUIDSchema } from '@contextport/contracts';
 import type { ContextService } from '../context/context.service.js';
 
-export function createMcpServer(service: ContextService, userId: string | undefined) {
+export function createMcpServer(service: ContextService, userId: string) {
   const server = new McpServer({ name: 'context-port', version: '0.1.0' });
   async function result(run: () => Promise<unknown>) {
     try {
