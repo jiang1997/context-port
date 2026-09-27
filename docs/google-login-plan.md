@@ -1,6 +1,6 @@
 # ContextPort Google 登录与开放注册计划
 
-状态：实施中。阶段 0/1 代码已落地（`users`/`sessions` 表 + `/api/v1/auth/google/*`、`/me`、`/logout`）；阶段 2+（数据归属、MCP 个人 Key、Web 接入、生产迁移）尚未开始。更新日期：2026-09-27。
+状态：实施中。阶段 0/1/2 代码已落地：`users`/`sessions`/`api_keys` 表与 Context 归属字段（`owner_user_id`，可空）、`/api/v1/auth/google/*` 登录与会话、REST/MCP 全部按用户隔离（含 CSRF 与个人 MCP Key，跨用户返回 404）、旧共享 Token 过渡语义（仅绑定所有者或只读迁移前数据）。阶段 3+（Web 接入、Vercel 转发、生产迁移、开放注册）尚未开始。更新日期：2026-09-27。
 
 ## 目标与默认决定
 
