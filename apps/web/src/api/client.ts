@@ -1,22 +1,25 @@
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1';
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
 
-let bearerToken: string | undefined;
-
-export function setBearerToken(token: string | undefined) {
-  bearerToken = token;
+/** Reads the CSRF double-submit cookie issued at login. */
+export function readCsrfToken(): string | undefined {
+  if (typeof document === 'undefined') return undefined;
+  const match = document.cookie.match(/(?:^|;\s*)cp_csrf=([^;]*)/);
+  return match?.[1] ? decodeURIComponent(match[1]) : undefined;
 }
 
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set('accept', 'application/json');
   if (init.body) headers.set('content-type', 'application/json');
-  if (bearerToken) headers.set('authorization', `Bearer ${bearerToken}`);
+  const csrfToken = readCsrfToken();
+  if (csrfToken) headers.set('x-csrf-token', csrfToken);
 
-  const response = await fetch(`${apiBaseUrl}${path}`, { ...init, headers });
+  const response = await fetch(`${apiBaseUrl}${path}`, { credentials: 'include', ...init, headers });
   if (!response.ok) {
     const payload: unknown = await response.json().catch(() => undefined);
     throw new ApiError(response.status, payload);
   }
+  if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
 
