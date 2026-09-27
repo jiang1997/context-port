@@ -4,9 +4,11 @@ services:
     runtime: node
     plan: free
     rootDir: .
+    # NOTE: do NOT use `corepack enable` here. Render's build filesystem is
+    # read-only around /usr/bin (preinstalled pnpm lives there), so corepack
+    # cannot install its shims (EROFS). Use the preinstalled pnpm directly;
+    # our lockfileVersion (9.0) is readable by pnpm 9+.
     buildCommand: >-
-      corepack enable &&
-      corepack prepare pnpm@12.4.2 --activate &&
       pnpm install --frozen-lockfile &&
       pnpm --filter @contextport/contracts build &&
       pnpm --filter @contextport/db build &&
