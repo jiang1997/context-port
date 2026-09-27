@@ -24,6 +24,8 @@ const EnvironmentSchema = z
       .default('false')
       .transform((value) => value === 'true'),
     API_AUTH_TOKEN: z.preprocess(value => value === '' ? undefined : value, z.string().min(24).optional()),
+    /** Transitional: binds the shared token to this internal user during migration. */
+    API_AUTH_LEGACY_USER_ID: z.preprocess(value => value === '' ? undefined : value, z.string().uuid().optional()),
     /** Google OAuth Web client. Auth is optional locally so existing flows keep working. */
     GOOGLE_CLIENT_ID: z.preprocess(value => value === '' ? undefined : value, z.string().optional()),
     GOOGLE_CLIENT_SECRET: z.preprocess(value => value === '' ? undefined : value, z.string().optional()),

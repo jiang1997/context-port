@@ -39,6 +39,8 @@ services:
         value: ""
       - key: API_AUTH_TOKEN
         sync: false
+      - key: API_AUTH_LEGACY_USER_ID
+        sync: false
       - key: DATABASE_URL
         sync: false
       # Google login (phase 1 of docs/google-login-plan.md). Set all three in

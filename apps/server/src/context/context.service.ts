@@ -5,19 +5,29 @@ import { CreateContextSchema, ListContextsSchema, type CreateContextInput } from
 import { DATABASE } from '../db/db.module.js';
 
 type Source = 'rest' | 'mcp';
+
+/**
+ * All public methods take the caller's user ID (from the server-side
+ * identity, never client input) and scope every query to it. Cross-user
+ * access returns 404 so record existence is not leaked. A userId of
+ * undefined is only the transitional pre-migration mode (legacy token or
+ * local dev) where pre-ownership rows stay readable.
+ */
 @Injectable()
 export class ContextService {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
-  async list(input: { limit?: number; offset?: number } = {}) {
+  async list(userId: string | undefined, input: { limit?: number; offset?: number } = {}) {
     const { limit, offset } = ListContextsSchema.parse(input);
     const { content: _, ...summary } = getTableColumns(contexts);
-    return this.db.select(summary).from(contexts).where(isNull(contexts.archivedAt))
+    return this.db.select(summary).from(contexts)
+      .where(and(this.ownership(userId), isNull(contexts.archivedAt)))
       .orderBy(desc(contexts.createdAt), desc(contexts.id)).limit(limit).offset(offset);
   }
 
-  async get(id: string) {
-    const [context] = await this.db.select().from(contexts).where(eq(contexts.id, id));
+  async get(userId: string | undefined, id: string) {
+    const [context] = await this.db.select().from(contexts)
+      .where(and(eq(contexts.id, id), this.ownership(userId)));
     if (!context) throw new NotFoundException({ code: 'CONTEXT_NOT_FOUND', message: 'Context not found.' });
     const { content: _, ...summary } = getTableColumns(threads);
     const index = await this.db.select(summary).from(threads)
@@ -26,17 +36,24 @@ export class ContextService {
     return { ...context, threads: index };
   }
 
-  async getThread(contextId: string, threadId: string) {
-    const [thread] = await this.db.select().from(threads)
-      .where(and(eq(threads.contextId, contextId), eq(threads.id, threadId)));
-    if (!thread) throw new NotFoundException({ code: 'THREAD_NOT_FOUND', message: 'Thread not found in this Context.' });
-    return thread;
+  async getThread(userId: string | undefined, contextId: string, threadId: string) {
+    // Threads inherit ownership through their parent Context, so ownership
+    // checks join the parent row rather than trusting the thread alone.
+    const filters = [eq(threads.contextId, contextId), eq(threads.id, threadId)];
+    filters.push(userId === undefined ? isNull(contexts.ownerUserId) : eq(contexts.ownerUserId, userId));
+    const [row] = await this.db.select({ thread: threads })
+      .from(threads)
+      .innerJoin(contexts, eq(threads.contextId, contexts.id))
+      .where(and(...filters));
+    if (!row) throw new NotFoundException({ code: 'THREAD_NOT_FOUND', message: 'Thread not found in this Context.' });
+    return row.thread;
   }
 
-  async create(input: CreateContextInput, source: Source) {
+  async create(userId: string | undefined, input: CreateContextInput, source: Source) {
     const data = CreateContextSchema.parse(input);
     return this.db.transaction(async tx => {
       const [context] = await tx.insert(contexts).values({ ...data,
+        ...(userId === undefined ? {} : { ownerUserId: userId }),
         updatedByType: data.createdByType, updatedBy: data.createdBy ?? null }).returning();
       if (!context) throw new Error('Context insert failed.');
       await tx.insert(revisions).values({ contextId: context.id, version: context.version,
@@ -46,11 +63,11 @@ export class ContextService {
     });
   }
 
-  async createThread(contextId: string, input: CreateContextInput, source: Source) {
+  async createThread(userId: string | undefined, contextId: string, input: CreateContextInput, source: Source) {
     const data = CreateContextSchema.parse(input);
     return this.db.transaction(async tx => {
       const [parent] = await tx.select({ id: contexts.id }).from(contexts)
-        .where(and(eq(contexts.id, contextId), isNull(contexts.archivedAt))).for('share');
+        .where(and(eq(contexts.id, contextId), isNull(contexts.archivedAt), this.ownership(userId))).for('share');
       if (!parent) throw new NotFoundException({ code: 'CONTEXT_NOT_FOUND', message: 'Active Context not found.' });
       const [thread] = await tx.insert(threads).values({ ...data, contextId,
         updatedByType: data.createdByType, updatedBy: data.createdBy ?? null }).returning();
@@ -60,5 +77,11 @@ export class ContextService {
         createdBy: thread.createdBy, source });
       return thread;
     });
+  }
+
+  private ownership(userId: string | undefined) {
+    // Pre-migration mode (anonymous/legacy token) only reaches ownerless rows;
+    // owned rows are invisible until phase 4 binds the legacy token to an owner.
+    return userId === undefined ? isNull(contexts.ownerUserId) : eq(contexts.ownerUserId, userId);
   }
 }
