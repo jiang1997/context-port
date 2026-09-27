@@ -19,38 +19,40 @@ const EnvironmentSchema = z
     WEB_ORIGIN: z.string().url().default('http://localhost:5173'),
     WEB_EXTRA_ORIGINS: z.string().default(''),
     DEPLOYMENT_MODE: z.enum(['local', 'network']).default('local'),
-    API_AUTH_ENABLED: z
-      .enum(['true', 'false'])
-      .default('false')
-      .transform((value) => value === 'true'),
-    API_AUTH_TOKEN: z.preprocess(value => value === '' ? undefined : value, z.string().min(24).optional()),
+    /** Google OAuth Web client. Auth is optional locally so existing flows keep working. */
+    GOOGLE_CLIENT_ID: z.preprocess(value => value === '' ? undefined : value, z.string().optional()),
+    GOOGLE_CLIENT_SECRET: z.preprocess(value => value === '' ? undefined : value, z.string().optional()),
+    /** Public base URL of this server for building the OAuth redirect URI. */
+    PUBLIC_BASE_URL: z.preprocess(value => value === '' ? undefined : value, z.string().url().optional()),
+    /** Secure cookie flag: 'auto' enables it outside local development. */
+    COOKIE_SECURE: z.enum(['true', 'false', 'auto']).default('auto'),
     LOG_LEVEL: z.preprocess(value => value === 'info' ? 'log' : value, z.enum(['error', 'warn', 'log', 'debug', 'verbose']).default('log')),
   })
   .superRefine((value, context) => {
-    if (value.DEPLOYMENT_MODE === 'network' && !value.API_AUTH_ENABLED) {
-      context.addIssue({
-        code: 'custom',
-        path: ['API_AUTH_ENABLED'],
-        message: 'Network mode requires API authentication.',
-      });
-    }
-    if (value.API_AUTH_ENABLED && !value.API_AUTH_TOKEN) {
-      context.addIssue({
-        code: 'custom',
-        path: ['API_AUTH_TOKEN'],
-        message: 'API_AUTH_TOKEN is required when authentication is enabled.',
-      });
-    }
-    if (value.DEPLOYMENT_MODE === 'local' && value.HOST !== '127.0.0.1' && !value.API_AUTH_ENABLED) {
+    if (value.DEPLOYMENT_MODE === 'local' && value.HOST !== '127.0.0.1') {
       context.addIssue({
         code: 'custom',
         path: ['HOST'],
-        message: 'Unauthenticated local mode must bind to 127.0.0.1.',
+        message: 'Local mode must bind to 127.0.0.1.',
+      });
+    }
+    const googleKeys = [value.GOOGLE_CLIENT_ID, value.GOOGLE_CLIENT_SECRET, value.PUBLIC_BASE_URL];
+    if (googleKeys.some(Boolean) && !googleKeys.every(Boolean)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['GOOGLE_CLIENT_ID'],
+        message: 'GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and PUBLIC_BASE_URL must be set together.',
       });
     }
   });
 
 export type Environment = z.infer<typeof EnvironmentSchema>;
+
+/** Session cookies are Secure unless explicitly disabled or in local dev. */
+export function usesSecureCookies(environment: Environment): boolean {
+  if (environment.COOKIE_SECURE === 'auto') return environment.DEPLOYMENT_MODE === 'network';
+  return environment.COOKIE_SECURE === 'true';
+}
 
 /** Primary origin plus comma-separated extras (e.g. Vercel preview deployments). */
 export function getAllowedOrigins(environment: Environment): string[] {

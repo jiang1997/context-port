@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { pgTable, uuid, varchar, text, integer, timestamp, check, index, unique } from 'drizzle-orm/pg-core';
+import { users } from './auth.js';
 const documentColumns = () => ({
   id: uuid('id').primaryKey().defaultRandom(),
   title: varchar('title', { length: 300 }).notNull(),
@@ -13,10 +14,14 @@ const documentColumns = () => ({
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'string' }).notNull().defaultNow(),
   archivedAt: timestamp('archived_at', { withTimezone: true, mode: 'string' }),
 });
-export const contexts = pgTable('contexts', documentColumns(), t => [
+export const contexts = pgTable('contexts', {
+  ...documentColumns(),
+  ownerUserId: uuid('owner_user_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+}, t => [
   check('contexts_version_positive', sql`${t.version} > 0`),
   check('contexts_actors_valid', sql`${t.createdByType} in ('human', 'agent') and ${t.updatedByType} in ('human', 'agent')`),
   index('contexts_created_idx').on(t.createdAt, t.id),
+  index('contexts_owner_idx').on(t.ownerUserId, t.createdAt, t.id),
 ]);
 export const threads = pgTable('threads', {
   ...documentColumns(),

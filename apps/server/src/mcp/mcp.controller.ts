@@ -3,19 +3,21 @@ import type { Request, Response } from 'express';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { ContextService } from '../context/context.service.js';
+import { RequestIdentity } from '../auth/request-identity.decorator.js';
+import type { AuthIdentity } from '../auth/auth-identity.js';
 import { createMcpServer } from './mcp.server.js';
 
 @Controller('mcp')
 export class McpController {
   constructor(@Inject(ContextService) private readonly service: ContextService) {}
   @All()
-  async handle(@Req() req: Request, @Res() res: Response) {
+  async handle(@RequestIdentity() identity: AuthIdentity, @Req() req: Request, @Res() res: Response) {
     if (req.method !== 'POST') {
       res.setHeader('Allow', 'POST');
       res.status(405).json({ jsonrpc: '2.0', id: null, error: { code: -32000, message: 'Method not allowed.' } });
       return;
     }
-    const server = createMcpServer(this.service);
+    const server = createMcpServer(this.service, identity.userId);
     const transport = new StreamableHTTPServerTransport({ enableJsonResponse: true });
     res.on('close', () => { void server.close(); });
     try {
