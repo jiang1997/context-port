@@ -134,7 +134,48 @@ p { color: var(--text-muted); line-height: 1.65; }
 .document-card-link:hover h2 { color: var(--accent); }
 .document-card:hover { border-color: var(--border-hover); }
 .document-card-link:hover { color: inherit; }
-.document-body { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.8; margin: 0; }
+/* Rendered Markdown (Context and Thread bodies). Headings and paragraphs are
+   re-based here: the page-level h1/p rules are tuned for the surrounding
+   chrome, not for body copy inside a panel. */
+.markdown { color: var(--text-secondary); line-height: 1.75; overflow-wrap: anywhere; }
+.markdown > :first-child { margin-top: 0; }
+.markdown > :last-child { margin-bottom: 0; }
+.markdown p { margin: 0 0 var(--space-4); color: inherit; }
+.markdown h1, .markdown h2, .markdown h3, .markdown h4, .markdown h5, .markdown h6 { margin: var(--space-8) 0 var(--space-3); color: var(--text-primary); font-weight: 650; line-height: 1.3; letter-spacing: -.015em; }
+.markdown h1 { font-size: 1.6rem; }
+.markdown h2 { font-size: 1.35rem; }
+.markdown h3 { font-size: 1.15rem; }
+.markdown h4, .markdown h5, .markdown h6 { font-size: 1rem; }
+.markdown strong { color: var(--text-primary); font-weight: 650; }
+.markdown del { color: var(--text-faint); }
+.markdown a { color: var(--accent); text-decoration: underline; text-decoration-color: rgba(118, 223, 200, .4); text-underline-offset: 3px; transition: text-decoration-color .15s ease; }
+.markdown a:hover { text-decoration-color: var(--accent); }
+.markdown ul, .markdown ol { margin: 0 0 var(--space-4); padding-left: var(--space-6); }
+.markdown li { margin: var(--space-1) 0; }
+.markdown li > ul, .markdown li > ol { margin: var(--space-1) 0 0; }
+.markdown ul { list-style: disc; }
+.markdown ul ul { list-style: circle; }
+.markdown ol { list-style: decimal; }
+.markdown li::marker { color: var(--text-faint); }
+.markdown input[type="checkbox"] { margin-right: var(--space-2); accent-color: var(--accent); vertical-align: middle; }
+.markdown .contains-task-list { list-style: none; padding-left: var(--space-2); }
+.markdown blockquote { margin: 0 0 var(--space-4); padding: var(--space-1) 0 var(--space-1) var(--space-4); border-left: 2px solid var(--accent-dim); color: var(--text-muted); }
+.markdown hr { margin: var(--space-6) 0; border: 0; border-top: 1px solid var(--border); }
+.markdown img { max-width: 100%; height: auto; border-radius: var(--radius-md); }
+.markdown code { padding: 0.15em 0.4em; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-1); color: var(--accent-dim); font: 0.875em/1.6 var(--font-mono); }
+.markdown pre { margin: 0 0 var(--space-4); padding: var(--space-4); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface-1); overflow-x: auto; }
+.markdown pre code { padding: 0; border: 0; background: none; color: var(--text-secondary); font-size: 13px; }
+.markdown table { display: block; width: 100%; margin: 0 0 var(--space-4); border-collapse: collapse; font-size: 14px; overflow-x: auto; }
+.markdown th, .markdown td { padding: var(--space-2) var(--space-3); border: 1px solid var(--border); text-align: left; }
+.markdown th { background: var(--surface-1); color: var(--text-primary); font-weight: 600; }
+.markdown-empty { margin: 0; color: var(--text-faint); }
+.markdown-skeleton { display: grid; gap: var(--space-3); }
+.markdown-skeleton span { height: 14px; border-radius: var(--radius-full); background: var(--surface-1); animation: skeleton-pulse 1.4s ease-in-out infinite; }
+.markdown-skeleton span:nth-child(2) { width: 92%; animation-delay: .1s; }
+.markdown-skeleton span:nth-child(3) { width: 78%; animation-delay: .2s; }
+.markdown-skeleton span:nth-child(4) { width: 60%; animation-delay: .3s; }
+@keyframes skeleton-pulse { 0%, 100% { opacity: .45; } 50% { opacity: .9; } }
+@media (prefers-reduced-motion: reduce) { .markdown-skeleton span { animation: none; opacity: .6; } }
 h1, h2 { overflow-wrap: anywhere; }
 .thread-link { display: block; padding: var(--space-4) 0; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
 .thread-link small { display: block; color: var(--text-muted); margin-top: var(--space-2); }

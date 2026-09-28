@@ -5,6 +5,7 @@ import type { ContextDetail, ContextSummary, CreateContextInput, Thread } from '
 import { apiRequest } from '../api/client';
 import { useAuthSession } from '../components/auth-status';
 import { CopyContextIdButton } from '../components/copy-context-id';
+import { MarkdownContent } from '../components/markdown-content';
 
 function ErrorMessage({ error }: { error: Error | null }) {
   return error ? <p role="alert">{error.message}</p> : null;
@@ -66,7 +67,7 @@ export function ContextDetailPage() {
     {query.isPending && <p>正在加载…</p>}{query.data && <>
     <h1>{query.data.title}</h1><p>{query.data.createdBy ?? query.data.createdByType} · v{query.data.version}</p>
     <p className="context-id-line"><span className="context-id-label">Context ID</span> <CopyContextIdButton contextId={query.data.id} /></p>
-    <section className="panel"><pre className="document-body">{query.data.content || '暂无正文'}</pre></section>
+    <section className="panel"><MarkdownContent content={query.data.content} /></section>
     <div className="detail-grid"><section className="panel"><h2>Threads</h2>
     {query.data.threads.length === 0 && <p>还没有 Thread。</p>}
     {query.data.threads.map(thread => <Link className="thread-link" key={thread.id} to={`/contexts/${contextId}/threads/${thread.id}`}>{thread.title}<small>{thread.createdBy ?? thread.createdByType}</small></Link>)}
@@ -82,6 +83,6 @@ export function ThreadDetailPage() {
     <ErrorMessage error={query.error} />{query.isPending && <p>正在加载…</p>}
     {query.data && <><span className="eyebrow thread-label">Thread</span><h1>{query.data.title}</h1>
     <p>{query.data.createdBy ?? query.data.createdByType} · v{query.data.version}</p>
-    <section className="panel"><pre className="document-body">{query.data.content || '暂无正文'}</pre></section></>}
+    <section className="panel"><MarkdownContent content={query.data.content} /></section></>}
   </div>;
 }
