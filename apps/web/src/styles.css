@@ -98,7 +98,7 @@ nav a.active { color: var(--text-primary); }
 nav a.active::after { content: ''; position: absolute; right: 0; bottom: -2px; left: 0; height: 2px; border-radius: var(--radius-full); background: var(--accent); }
 
 .page-heading { display: flex; gap: var(--space-8); align-items: flex-end; justify-content: space-between; }
-.page-heading .button { margin-top: 0; flex: none; }
+.page-heading .button { flex: none; }
 .back-link { display: inline-block; margin-bottom: var(--space-6); color: var(--text-secondary); font-size: var(--text-sm); transition: color .15s ease; }
 .back-link:hover { color: var(--accent); }
 
@@ -114,10 +114,14 @@ p { margin: 0 0 var(--space-4); color: var(--text-muted); line-height: 1.65; }
 .meta { margin: var(--space-1) 0 0; color: var(--text-faint); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
 .eyebrow { color: var(--accent-dim); font: 600 var(--text-xs)/1.2 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; }
 
-.button { display: inline-flex; justify-content: center; align-items: center; margin-top: var(--space-5); padding: var(--space-3) var(--space-5); border: 0; border-radius: var(--radius-md); color: var(--on-accent); background: var(--accent); font-weight: 700; cursor: pointer; transition: background-color .15s ease, transform .1s ease, box-shadow .15s ease; }
+/* No margin on the base class: every call site previously had to cancel an
+   inherited `margin-top`, which made the spacing accidental rather than
+   declared. Contexts that want breathing room opt in below. */
+.button { display: inline-flex; justify-content: center; align-items: center; padding: var(--space-3) var(--space-5); border: 0; border-radius: var(--radius-md); color: var(--on-accent); background: var(--accent); font-weight: 700; cursor: pointer; transition: background-color .15s ease, transform .1s ease, box-shadow .15s ease; }
 .button:hover:not(:disabled) { background: var(--accent-hover); }
 .button:active:not(:disabled) { transform: translateY(1px); }
-.button-small { margin: 0; padding: var(--space-2) var(--space-3); }
+.button-small { padding: var(--space-2) var(--space-3); }
+.task-form .button { margin-top: var(--space-2); }
 /* Secondary actions: navigation and paging controls that must not compete
    with the single primary action on the page. */
 .button-secondary { border: 1px solid var(--border-strong); color: var(--text-secondary); background: transparent; font-weight: 600; }
@@ -180,7 +184,6 @@ p { margin: 0 0 var(--space-4); color: var(--text-muted); line-height: 1.65; }
 .notice-title { margin: 0; color: var(--text-primary); font-weight: 650; }
 .notice-body { margin: 0; color: var(--text-muted); }
 .notice-action { margin-top: var(--space-2); }
-.notice-action .button { margin-top: 0; }
 .notice-error { border-style: solid; border-color: color-mix(in srgb, var(--danger) 40%, transparent); background: color-mix(in srgb, var(--danger) 8%, transparent); }
 .notice-error .notice-title { color: var(--danger); }
 .panel-hint { color: var(--text-faint); font-size: var(--text-sm); }
@@ -242,7 +245,7 @@ button:disabled { opacity: .5; cursor: default; }
   .document-card:focus-within .context-id-compact { opacity: 1; }
 }
 .context-id-code { padding: 6px 10px; background: var(--surface-1); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font: var(--text-xs)/1.5 var(--font-mono); color: var(--text-secondary); user-select: all; overflow-wrap: anywhere; }
-.copy-id-button { margin-top: 0; }
+.copy-id-button { align-self: center; }
 .copy-id-feedback { font-size: var(--text-xs); color: var(--accent-dim); min-height: 1em; }
 .context-id-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .context-id-label { font: 600 var(--text-xs)/1.2 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent-dim); }
