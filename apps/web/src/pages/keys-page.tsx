@@ -101,7 +101,7 @@ export function KeysPage() {
           {active.map(key => (
             <div className="panel document-card" key={key.id}>
               <h2>{key.name}</h2>
-              <p>创建于 {new Date(key.createdAt).toLocaleString()} · 最后使用 {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleString() : '从未使用'}</p>
+              <p className="meta">创建于 {new Date(key.createdAt).toLocaleString()} · 最后使用 {key.lastUsedAt ? new Date(key.lastUsedAt).toLocaleString() : '从未使用'}</p>
               <button type="button" className="user-logout" onClick={() => revoke.mutate(key.id)} disabled={revoke.isPending}>
                 {revoke.isPending && revoke.variables === key.id ? '正在撤销…' : '撤销'}
               </button>
@@ -110,7 +110,7 @@ export function KeysPage() {
           {revoked.map(key => (
             <div className="panel document-card key-revoked" key={key.id}>
               <h2>{key.name}</h2>
-              <p>已于 {new Date(key.revokedAt!).toLocaleString()} 撤销 · 该 Key 的请求会被拒绝</p>
+              <p className="meta">已于 {new Date(key.revokedAt!).toLocaleString()} 撤销 · 该 Key 的请求会被拒绝</p>
             </div>
           ))}
         </div>

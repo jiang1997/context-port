@@ -42,7 +42,7 @@ export function ContextListPage() {
     {contexts?.length === 0 && <p>这里还没有 Context。创建一个，开始与 Agent 共享上下文。</p>}
     <div className="document-list">{contexts?.map(item => <article className="panel document-card" key={item.id}>
       <Link className="document-card-link" to={`/contexts/${item.id}`}>
-        <h2>{item.title}</h2><p>{item.createdBy ?? item.createdByType} · {new Date(item.createdAt).toLocaleString()}</p>
+        <h2>{item.title}</h2><p className="meta">{item.createdBy ?? item.createdByType} · {new Date(item.createdAt).toLocaleString()}</p>
       </Link>
       <CopyContextIdButton contextId={item.id} compact />
     </article>)}</div>
@@ -65,7 +65,7 @@ export function ContextDetailPage() {
     onSuccess: async data => { await client.invalidateQueries({ queryKey: ['context', contextId] }); navigate(`/contexts/${contextId}/threads/${data.id}`); } });
   return <div className="page"><Link to="/">← 所有 Context</Link><ErrorMessage error={query.error} />
     {query.isPending && <p>正在加载…</p>}{query.data && <>
-    <h1>{query.data.title}</h1><p>{query.data.createdBy ?? query.data.createdByType} · v{query.data.version}</p>
+    <h1>{query.data.title}</h1><p className="meta">{query.data.createdBy ?? query.data.createdByType} · v{query.data.version}</p>
     <p className="context-id-line"><span className="context-id-label">Context ID</span> <CopyContextIdButton contextId={query.data.id} /></p>
     <section className="panel"><MarkdownContent content={query.data.content} /></section>
     <div className="detail-grid"><section className="panel"><h2>Threads</h2>
@@ -82,7 +82,7 @@ export function ThreadDetailPage() {
   return <div className="page"><Link to={`/contexts/${contextId}`}>← 返回 Context</Link>
     <ErrorMessage error={query.error} />{query.isPending && <p>正在加载…</p>}
     {query.data && <><span className="eyebrow thread-label">Thread</span><h1>{query.data.title}</h1>
-    <p>{query.data.createdBy ?? query.data.createdByType} · v{query.data.version}</p>
+    <p className="meta">{query.data.createdBy ?? query.data.createdByType} · v{query.data.version}</p>
     <section className="panel"><MarkdownContent content={query.data.content} /></section></>}
   </div>;
 }
