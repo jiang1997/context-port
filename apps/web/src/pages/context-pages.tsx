@@ -21,10 +21,10 @@ function DocumentForm({ onSave, pending, error, label }: {
     onSave({ title, content: String(data.get('content')), createdByType: 'human' });
   }
   return <form className="task-form" onSubmit={submit}>
-    <label>标题<input name="title" required pattern={String.raw`.*\S.*`} maxLength={300} disabled={pending} /></label>
-    <label>正文（Markdown）<textarea name="content" rows={10} maxLength={100000} disabled={pending} /></label>
+    <label>Title<input name="title" required pattern={String.raw`.*\S.*`} maxLength={300} disabled={pending} /></label>
+    <label>Body (Markdown)<textarea name="content" rows={10} maxLength={100000} disabled={pending} /></label>
     <ErrorNotice error={error} />
-    <button className="button" disabled={pending}>{pending ? '正在创建…' : label}</button>
+    <button className="button" disabled={pending}>{pending ? 'Creating…' : label}</button>
   </form>;
 }
 export function ContextListPage() {
@@ -35,44 +35,44 @@ export function ContextListPage() {
   return <div className="page">
     <div className="page-heading">
       <div>
-        <span className="eyebrow">共同维护的知识空间</span>
+        <span className="eyebrow">A shared knowledge space</span>
         <h1>Contexts</h1>
       </div>
-      {auth.data?.user && <Link className="button" to="/contexts/new">创建 Context</Link>}
+      {auth.data?.user && <Link className="button" to="/contexts/new">New Context</Link>}
     </div>
-    <p>一个 Context 保存整体背景，Thread 整理其中的具体话题。</p>
+    <p>A Context holds the overall background; Threads organize the specific topics inside it.</p>
     <ErrorNotice error={auth.error ?? (auth.data?.user ? query.error : null)} />
     {auth.isPending && <LoadingList />}
     {!auth.isPending && !auth.error && !auth.data?.user && <SignedOutNotice />}
     {auth.data?.user && query.isPending && <LoadingList />}
     {contexts?.length === 0 && (
       <Notice
-        title="这里还没有 Context"
-        action={<Link className="button" to="/contexts/new">创建第一个 Context</Link>}
+        title="No Contexts yet"
+        action={<Link className="button" to="/contexts/new">Create your first Context</Link>}
       >
-        创建一个背景文档，让人和 Agent 在同一份上下文上持续补充。
+        Create a background document that people and agents can keep building on together.
       </Notice>
     )}
     <div className="document-list">{contexts?.map(item => <article className="panel document-card" key={item.id}>
       <Link className="document-card-link" to={`/contexts/${item.id}`}>
         <h2>{item.title}</h2>
         <p className="meta">
-          <span className={`origin-badge origin-${item.createdByType}`}>{item.createdByType === 'agent' ? 'Agent' : '人工'}</span>
-          {item.createdBy ?? '未署名'} · 更新于 <RelativeTime value={item.updatedAt} />
+          <span className={`origin-badge origin-${item.createdByType}`}>{item.createdByType === 'agent' ? 'Agent' : 'Human'}</span>
+          {item.createdBy ?? 'Anonymous'} · updated <RelativeTime value={item.updatedAt} />
         </p>
       </Link>
       <CopyContextIdButton contextId={item.id} compact />
     </article>)}</div>
-    <div className="form-actions"><button className="button button-secondary" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 20))}>上一页</button>
-    <button className="button button-secondary" disabled={!contexts || contexts.length < 20} onClick={() => setOffset(offset + 20)}>下一页</button></div>
+    <div className="form-actions"><button className="button button-secondary" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 20))}>Previous</button>
+    <button className="button button-secondary" disabled={!contexts || contexts.length < 20} onClick={() => setOffset(offset + 20)}>Next</button></div>
   </div>;
 }
 export function ContextCreatePage() {
   const navigate = useNavigate(); const client = useQueryClient();
   const mutation = useMutation({ mutationFn: (data: CreateContextInput) => apiRequest<ContextDetail>('/contexts', { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: async data => { await client.invalidateQueries({ queryKey: ['contexts'] }); navigate(`/contexts/${data.id}`); } });
-  return <div className="page page-narrow"><span className="eyebrow">新的共享文档</span><h1>创建 Context</h1><p>记录目标、背景与当前共识。</p>
-    <DocumentForm onSave={data => mutation.mutate(data)} pending={mutation.isPending} error={mutation.error} label="创建 Context" /></div>;
+  return <div className="page page-narrow"><span className="eyebrow">A new shared document</span><h1>New Context</h1><p>Record the goal, the background, and the current shared understanding.</p>
+    <DocumentForm onSave={data => mutation.mutate(data)} pending={mutation.isPending} error={mutation.error} label="Create Context" /></div>;
 }
 export function ContextDetailPage() {
   const { contextId } = useParams();
@@ -80,23 +80,23 @@ export function ContextDetailPage() {
   const client = useQueryClient(); const navigate = useNavigate();
   const mutation = useMutation({ mutationFn: (data: CreateContextInput) => apiRequest<Thread>(`/contexts/${contextId}/threads`, { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: async data => { await client.invalidateQueries({ queryKey: ['context', contextId] }); navigate(`/contexts/${contextId}/threads/${data.id}`); } });
-  return <div className="page"><Link className="back-link" to="/">← 所有 Context</Link><ErrorNotice error={query.error} />
+  return <div className="page"><Link className="back-link" to="/">← All Contexts</Link><ErrorNotice error={query.error} />
     {query.isPending && <Skeleton lines={6} heading />}{query.data && <>
     <h1>{query.data.title}</h1><p className="meta">{query.data.createdBy ?? query.data.createdByType} · v{query.data.version}</p>
     <p className="context-id-line"><span className="context-id-label">Context ID</span> <CopyContextIdButton contextId={query.data.id} /></p>
     <section className="panel"><MarkdownContent content={query.data.content} /></section>
     <div className="detail-grid"><section className="panel"><h2>Threads</h2>
-    {query.data.threads.length === 0 && <p className="panel-hint">还没有 Thread。在右侧围绕这个 Context 展开第一个话题。</p>}
+    {query.data.threads.length === 0 && <p className="panel-hint">No threads yet. Start the first one on the right.</p>}
     {query.data.threads.map(thread => <Link className="thread-link" key={thread.id} to={`/contexts/${contextId}/threads/${thread.id}`}>{thread.title}<small>{thread.createdBy ?? thread.createdByType}</small></Link>)}
-    </section><section className="panel"><h2>创建 Thread</h2><p>围绕这个 Context，展开一个具体话题。</p>
-    <DocumentForm onSave={data => mutation.mutate(data)} pending={mutation.isPending} error={mutation.error} label="创建 Thread" />
+    </section><section className="panel"><h2>New Thread</h2><p>Open a specific topic within this Context.</p>
+    <DocumentForm onSave={data => mutation.mutate(data)} pending={mutation.isPending} error={mutation.error} label="Create Thread" />
     </section></div></>}
   </div>;
 }
 export function ThreadDetailPage() {
   const { contextId, threadId } = useParams();
   const query = useQuery({ queryKey: ['thread', contextId, threadId], queryFn: () => apiRequest<Thread>(`/contexts/${contextId}/threads/${threadId}`), refetchInterval: 5000 });
-  return <div className="page"><Link className="back-link" to={`/contexts/${contextId}`}>← 返回 Context</Link>
+  return <div className="page"><Link className="back-link" to={`/contexts/${contextId}`}>← Back to Context</Link>
     <ErrorNotice error={query.error} />{query.isPending && <Skeleton lines={6} heading />}
     {query.data && <><span className="eyebrow thread-label">Thread</span><h1>{query.data.title}</h1>
     <p className="meta">{query.data.createdBy ?? query.data.createdByType} · v{query.data.version}</p>

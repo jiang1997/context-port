@@ -16,7 +16,7 @@ function UserMenu({ user }: { user: SessionUser }) {
         : <span className="user-avatar user-avatar-fallback" aria-hidden>{user.email.slice(0, 1).toUpperCase()}</span>}
       <span className="user-name">{user.name ?? user.email}</span>
       <button type="button" className="user-logout" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
-        退出
+        Sign out
       </button>
     </span>
   );
@@ -30,7 +30,7 @@ export function LoginButton() {
   const location = useLocation();
   return (
     <a className="button button-small" href={googleLoginUrl(location.pathname)} rel="noreferrer">
-      Google 登录
+      Sign in with Google
     </a>
   );
 }
@@ -39,7 +39,7 @@ export function AuthStatus() {
   const { data, isLoading } = useAuthSession();
   // A fixed-size placeholder rather than an ellipsis, so the topbar does not
   // reflow when the user menu replaces it.
-  if (isLoading) return <span className="auth-loading" role="status" aria-label="正在检查登录状态" />;
+  if (isLoading) return <span className="auth-loading" role="status" aria-label="Checking sign-in status" />;
   if (data?.user) return <UserMenu user={data.user} />;
   return <LoginButton />;
 }

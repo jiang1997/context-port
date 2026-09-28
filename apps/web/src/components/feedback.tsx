@@ -17,7 +17,7 @@ export function Skeleton({ lines = 3, heading = false }: { lines?: number; headi
 
 export function LoadingList({ rows = 3 }: { rows?: number }) {
   return (
-    <div className="document-list" role="status" aria-label="正在加载">
+    <div className="document-list" role="status" aria-label="Loading">
       {Array.from({ length: rows }, (_, index) => (
         <div className="panel document-card" key={index}>
           <Skeleton lines={2} heading />
@@ -47,14 +47,14 @@ export function SignedOutNotice() {
   const location = useLocation();
   return (
     <Notice
-      title="还没有登录"
+      title="Not signed in"
       action={
         <a className="button" href={googleLoginUrl(location.pathname)} rel="noreferrer">
-          使用 Google 登录
+          Sign in with Google
         </a>
       }
     >
-      登录后即可创建 Context，并把你的 Agent 通过 MCP 接入这个工作区。
+      Sign in to create Contexts and to connect your agents to this workspace over MCP.
     </Notice>
   );
 }
@@ -63,7 +63,7 @@ export function ErrorNotice({ error }: { error: Error | null }) {
   if (!error) return null;
   return (
     <div className="notice notice-error" role="alert">
-      <p className="notice-title">出错了</p>
+      <p className="notice-title">Something went wrong</p>
       <p className="notice-body">{error.message}</p>
     </div>
   );

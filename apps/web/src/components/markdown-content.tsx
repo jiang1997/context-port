@@ -14,7 +14,7 @@ const MarkdownBody = lazy(() => import('./markdown-body'));
  * content is written by agents as well as by the account owner.
  */
 export function MarkdownContent({ content }: { content: string }) {
-  if (!content.trim()) return <p className="markdown-empty">暂无正文</p>;
+  if (!content.trim()) return <p className="markdown-empty">No content yet</p>;
 
   return (
     <div className="markdown">

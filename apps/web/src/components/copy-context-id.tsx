@@ -62,13 +62,13 @@ export function CopyContextIdButton({ contextId, compact = false }: { contextId:
         type="button"
         className="button button-small copy-id-button"
         onClick={handleClick}
-        aria-label={`复制 Context ID ${contextId}`}
-        title="复制完整 Context ID"
+        aria-label={`Copy Context ID ${contextId}`}
+        title="Copy the full Context ID"
       >
-        {status === 'copied' ? '已复制' : '复制 ID'}
+        {status === 'copied' ? 'Copied' : 'Copy ID'}
       </button>
       <span role="status" aria-live="polite" className="copy-id-feedback">
-        {status === 'copied' ? '已复制 Context ID' : status === 'failed' ? '复制失败，请手动选择复制完整 ID' : ''}
+        {status === 'copied' ? 'Context ID copied' : status === 'failed' ? 'Copy failed. Select the full ID and copy it manually.' : ''}
       </span>
     </span>
   );
