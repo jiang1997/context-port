@@ -86,7 +86,15 @@ button, input, textarea { font: inherit; }
 .brand strong, .brand small { display: block; }
 .brand small { margin-top: var(--space-1); color: var(--text-faint); font-size: var(--text-xs); letter-spacing: .04em; }
 nav { display: flex; align-items: center; gap: var(--space-6); color: var(--text-secondary); font-size: var(--text-base); }
-nav a.active:not(.button) { color: var(--text-primary); }
+nav a { position: relative; padding: var(--space-2) 0; transition: color .15s ease; }
+nav a:hover { color: var(--text-primary); }
+nav a.active { color: var(--text-primary); }
+nav a.active::after { content: ''; position: absolute; right: 0; bottom: -2px; left: 0; height: 2px; border-radius: var(--radius-full); background: var(--accent); }
+
+.page-heading { display: flex; gap: var(--space-8); align-items: flex-end; justify-content: space-between; }
+.page-heading .button { margin-top: 0; flex: none; }
+.back-link { display: inline-block; margin-bottom: var(--space-6); color: var(--text-secondary); font-size: var(--text-sm); transition: color .15s ease; }
+.back-link:hover { color: var(--accent); }
 
 .page { width: min(1120px, 90vw); margin: 0 auto; padding: var(--space-20) 0; }
 .page-narrow { width: min(720px, 90vw); }
@@ -104,6 +112,15 @@ p { margin: 0 0 var(--space-4); color: var(--text-muted); line-height: 1.65; }
 .button:hover:not(:disabled) { background: var(--accent-hover); }
 .button:active:not(:disabled) { transform: translateY(1px); }
 .button-small { margin: 0; padding: var(--space-2) var(--space-3); }
+/* Secondary actions: navigation and paging controls that must not compete
+   with the single primary action on the page. */
+.button-secondary { border: 1px solid var(--border-strong); color: var(--text-secondary); background: transparent; font-weight: 600; }
+.button-secondary:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: transparent; }
+
+/* Marks whether a document was authored by a person or by an agent, which is
+   the single most useful signal when scanning the list. */
+.origin-badge { display: inline-block; margin-right: var(--space-2); padding: 2px var(--space-2); border: 1px solid var(--border-strong); border-radius: var(--radius-full); font-size: var(--text-xs); line-height: 1.4; color: var(--text-secondary); }
+.origin-agent { border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--accent-dim); }
 
 .user-menu { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--text-secondary); }
 .user-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
@@ -137,15 +154,16 @@ p { margin: 0 0 var(--space-4); color: var(--text-muted); line-height: 1.65; }
 }
 
 .document-list { display: grid; gap: var(--space-4); margin-top: var(--space-8); }
-.document-card { display: block; min-height: auto; }
+.document-card { display: block; min-height: auto; transition: border-color .15s ease, background-color .15s ease, transform .15s ease; }
+.document-card:hover { border-color: var(--border-hover); background: rgba(23, 34, 37, .85); transform: translateY(-1px); }
 .document-card-link { display: block; border-radius: var(--radius-sm); }
 .document-card-link:hover h2 { color: var(--accent); }
-.document-card:hover { border-color: var(--border-hover); }
-.document-card-link:hover { color: inherit; }
 /* Rendered Markdown (Context and Thread bodies). Headings and paragraphs are
    re-based here: the page-level h1/p rules are tuned for the surrounding
    chrome, not for body copy inside a panel. */
-.markdown { color: var(--text-secondary); line-height: 1.75; overflow-wrap: anywhere; }
+/* Capped to a comfortable measure: the page is 1120px wide, which is far more
+   than a line of body text should ever run. */
+.markdown { max-width: 72ch; color: var(--text-secondary); line-height: 1.75; overflow-wrap: anywhere; }
 .markdown > :first-child { margin-top: 0; }
 .markdown > :last-child { margin-bottom: 0; }
 .markdown p { margin: 0 0 var(--space-4); color: inherit; }
@@ -193,7 +211,15 @@ button:disabled { opacity: .5; cursor: default; }
 [role="alert"] { color: var(--danger); }
 
 .context-id { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.context-id-compact { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border); width: 100%; }
+.context-id-compact { margin-top: var(--space-3); width: 100%; }
+/* Every row carrying a UUID and a copy button is noisy, so the compact
+   variant stays out of the way until the row is hovered or focused. Pointer
+   devices only, so touch users always see it. */
+@media (hover: hover) {
+  .document-card .context-id-compact { opacity: 0; transition: opacity .15s ease; }
+  .document-card:hover .context-id-compact,
+  .document-card:focus-within .context-id-compact { opacity: 1; }
+}
 .context-id-code { padding: 6px 10px; background: var(--surface-1); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font: var(--text-xs)/1.5 var(--font-mono); color: var(--text-secondary); user-select: all; overflow-wrap: anywhere; }
 .copy-id-button { margin-top: 0; }
 .copy-id-feedback { font-size: var(--text-xs); color: var(--accent-dim); min-height: 1em; }

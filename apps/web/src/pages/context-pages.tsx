@@ -6,6 +6,7 @@ import { apiRequest } from '../api/client';
 import { useAuthSession } from '../components/auth-status';
 import { CopyContextIdButton } from '../components/copy-context-id';
 import { MarkdownContent } from '../components/markdown-content';
+import { RelativeTime } from '../components/relative-time';
 
 function ErrorMessage({ error }: { error: Error | null }) {
   return error ? <p role="alert">{error.message}</p> : null;
@@ -33,7 +34,14 @@ export function ContextListPage() {
   const auth = useAuthSession();
   const query = useQuery({ queryKey: ['contexts', offset], queryFn: () => apiRequest<ContextSummary[]>(`/contexts?limit=20&offset=${offset}`), enabled: Boolean(auth.data?.user), refetchInterval: 5000 });
   const contexts = auth.data?.user ? query.data : undefined;
-  return <div className="page"><span className="eyebrow">共同维护的知识空间</span><h1>Contexts</h1>
+  return <div className="page">
+    <div className="page-heading">
+      <div>
+        <span className="eyebrow">共同维护的知识空间</span>
+        <h1>Contexts</h1>
+      </div>
+      {auth.data?.user && <Link className="button" to="/contexts/new">创建 Context</Link>}
+    </div>
     <p>一个 Context 保存整体背景，Thread 整理其中的具体话题。</p>
     <ErrorMessage error={auth.error ?? (auth.data?.user ? query.error : null)} />
     {auth.isPending && <p>正在检查登录状态…</p>}
@@ -42,19 +50,23 @@ export function ContextListPage() {
     {contexts?.length === 0 && <p>这里还没有 Context。创建一个，开始与 Agent 共享上下文。</p>}
     <div className="document-list">{contexts?.map(item => <article className="panel document-card" key={item.id}>
       <Link className="document-card-link" to={`/contexts/${item.id}`}>
-        <h2>{item.title}</h2><p className="meta">{item.createdBy ?? item.createdByType} · {new Date(item.createdAt).toLocaleString()}</p>
+        <h2>{item.title}</h2>
+        <p className="meta">
+          <span className={`origin-badge origin-${item.createdByType}`}>{item.createdByType === 'agent' ? 'Agent' : '人工'}</span>
+          {item.createdBy ?? '未署名'} · 更新于 <RelativeTime value={item.updatedAt} />
+        </p>
       </Link>
       <CopyContextIdButton contextId={item.id} compact />
     </article>)}</div>
-    <div className="form-actions"><button className="button" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 20))}>上一页</button>
-    <button className="button" disabled={!contexts || contexts.length < 20} onClick={() => setOffset(offset + 20)}>下一页</button></div>
+    <div className="form-actions"><button className="button button-secondary" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 20))}>上一页</button>
+    <button className="button button-secondary" disabled={!contexts || contexts.length < 20} onClick={() => setOffset(offset + 20)}>下一页</button></div>
   </div>;
 }
 export function ContextCreatePage() {
   const navigate = useNavigate(); const client = useQueryClient();
   const mutation = useMutation({ mutationFn: (data: CreateContextInput) => apiRequest<ContextDetail>('/contexts', { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: async data => { await client.invalidateQueries({ queryKey: ['contexts'] }); navigate(`/contexts/${data.id}`); } });
-  return <div className="page page-narrow"><h1>创建 Context</h1><p>记录目标、背景与当前共识。</p>
+  return <div className="page page-narrow"><span className="eyebrow">新的共享文档</span><h1>创建 Context</h1><p>记录目标、背景与当前共识。</p>
     <DocumentForm onSave={data => mutation.mutate(data)} pending={mutation.isPending} error={mutation.error} label="创建 Context" /></div>;
 }
 export function ContextDetailPage() {
@@ -63,7 +75,7 @@ export function ContextDetailPage() {
   const client = useQueryClient(); const navigate = useNavigate();
   const mutation = useMutation({ mutationFn: (data: CreateContextInput) => apiRequest<Thread>(`/contexts/${contextId}/threads`, { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: async data => { await client.invalidateQueries({ queryKey: ['context', contextId] }); navigate(`/contexts/${contextId}/threads/${data.id}`); } });
-  return <div className="page"><Link to="/">← 所有 Context</Link><ErrorMessage error={query.error} />
+  return <div className="page"><Link className="back-link" to="/">← 所有 Context</Link><ErrorMessage error={query.error} />
     {query.isPending && <p>正在加载…</p>}{query.data && <>
     <h1>{query.data.title}</h1><p className="meta">{query.data.createdBy ?? query.data.createdByType} · v{query.data.version}</p>
     <p className="context-id-line"><span className="context-id-label">Context ID</span> <CopyContextIdButton contextId={query.data.id} /></p>
@@ -79,7 +91,7 @@ export function ContextDetailPage() {
 export function ThreadDetailPage() {
   const { contextId, threadId } = useParams();
   const query = useQuery({ queryKey: ['thread', contextId, threadId], queryFn: () => apiRequest<Thread>(`/contexts/${contextId}/threads/${threadId}`), refetchInterval: 5000 });
-  return <div className="page"><Link to={`/contexts/${contextId}`}>← 返回 Context</Link>
+  return <div className="page"><Link className="back-link" to={`/contexts/${contextId}`}>← 返回 Context</Link>
     <ErrorMessage error={query.error} />{query.isPending && <p>正在加载…</p>}
     {query.data && <><span className="eyebrow thread-label">Thread</span><h1>{query.data.title}</h1>
     <p className="meta">{query.data.createdBy ?? query.data.createdByType} · v{query.data.version}</p>
