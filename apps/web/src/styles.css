@@ -132,7 +132,7 @@ p { margin: 0 0 var(--space-4); color: var(--text-muted); line-height: 1.65; }
 .key-banner code { display: block; word-break: break-all; padding: 10px; background: var(--surface-1); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 .key-row { display: flex; align-items: flex-start; gap: var(--space-2); margin: var(--space-2) 0; }
 .key-revoked { opacity: 0.55; }
-.auth-loading { color: var(--text-faint); font-size: var(--text-sm); }
+.auth-loading { display: inline-block; width: 108px; height: 28px; border-radius: var(--radius-full); background: var(--surface-1); animation: skeleton-pulse 1.4s ease-in-out infinite; }
 
 .task-form { margin-top: var(--space-10); display: grid; gap: var(--space-6); }
 .task-form label { display: grid; gap: var(--space-2); color: var(--text-secondary); font-size: var(--text-base); }
@@ -158,6 +158,29 @@ p { margin: 0 0 var(--space-4); color: var(--text-muted); line-height: 1.65; }
 .document-card:hover { border-color: var(--border-hover); background: rgba(23, 34, 37, .85); transform: translateY(-1px); }
 .document-card-link { display: block; border-radius: var(--radius-sm); }
 .document-card-link:hover h2 { color: var(--accent); }
+/* Loading, empty and error states. These were bare <p> elements in body grey,
+   so "you have no data yet" looked identical to actual content. */
+.skeleton { display: grid; gap: var(--space-3); }
+.skeleton span { height: var(--space-4); border-radius: var(--radius-full); background: var(--surface-1); animation: skeleton-pulse 1.4s ease-in-out infinite; }
+.skeleton span:nth-child(2) { width: 92%; animation-delay: .1s; }
+.skeleton span:nth-child(3) { width: 78%; animation-delay: .2s; }
+.skeleton span:nth-child(4) { width: 84%; animation-delay: .3s; }
+.skeleton span:nth-child(5) { width: 66%; animation-delay: .4s; }
+.skeleton span:nth-child(6) { width: 88%; animation-delay: .5s; }
+.skeleton .skeleton-heading { width: 45%; height: var(--space-8); }
+@keyframes skeleton-pulse { 0%, 100% { opacity: .45; } 50% { opacity: .9; } }
+
+.notice { display: grid; gap: var(--space-2); margin-top: var(--space-8); padding: var(--space-6); border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); background: rgba(17, 26, 29, .5); }
+.notice-title { margin: 0; color: var(--text-primary); font-weight: 650; }
+.notice-body { margin: 0; color: var(--text-muted); }
+.notice-action { margin-top: var(--space-2); }
+.notice-action .button { margin-top: 0; }
+.notice-error { border-style: solid; border-color: color-mix(in srgb, var(--danger) 40%, transparent); background: color-mix(in srgb, var(--danger) 8%, transparent); }
+.notice-error .notice-title { color: var(--danger); }
+.panel-hint { color: var(--text-faint); font-size: var(--text-sm); }
+
+@media (prefers-reduced-motion: reduce) { .skeleton span { animation: none; opacity: .6; } }
+
 /* Rendered Markdown (Context and Thread bodies). Headings and paragraphs are
    re-based here: the page-level h1/p rules are tuned for the surrounding
    chrome, not for body copy inside a panel. */
@@ -195,20 +218,12 @@ p { margin: 0 0 var(--space-4); color: var(--text-muted); line-height: 1.65; }
 .markdown th, .markdown td { padding: var(--space-2) var(--space-3); border: 1px solid var(--border); text-align: left; }
 .markdown th { background: var(--surface-1); color: var(--text-primary); font-weight: 600; }
 .markdown-empty { margin: 0; color: var(--text-faint); }
-.markdown-skeleton { display: grid; gap: var(--space-3); }
-.markdown-skeleton span { height: 14px; border-radius: var(--radius-full); background: var(--surface-1); animation: skeleton-pulse 1.4s ease-in-out infinite; }
-.markdown-skeleton span:nth-child(2) { width: 92%; animation-delay: .1s; }
-.markdown-skeleton span:nth-child(3) { width: 78%; animation-delay: .2s; }
-.markdown-skeleton span:nth-child(4) { width: 60%; animation-delay: .3s; }
-@keyframes skeleton-pulse { 0%, 100% { opacity: .45; } 50% { opacity: .9; } }
-@media (prefers-reduced-motion: reduce) { .markdown-skeleton span { animation: none; opacity: .6; } }
 h1, h2 { overflow-wrap: anywhere; }
 .thread-link { display: block; padding: var(--space-4) 0; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
 .thread-link small { display: block; color: var(--text-muted); margin-top: var(--space-2); }
 .thread-link:hover { border-color: var(--accent); }
 .thread-label { display: block; margin-top: var(--space-8); }
 button:disabled { opacity: .5; cursor: default; }
-[role="alert"] { color: var(--danger); }
 
 .context-id { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .context-id-compact { margin-top: var(--space-3); width: 100%; }

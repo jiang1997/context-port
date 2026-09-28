@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { createKey, listKeys, revokeKey } from '../api/keys';
 import { useAuthSession } from '../components/auth-status';
+import { ErrorNotice, LoadingList, Notice, SignedOutNotice } from '../components/feedback';
 
 /** Remote MCP clients talk to the API host directly (never through the web origin). */
 const MCP_ENDPOINT = 'https://contextport-server-sg.onrender.com/mcp';
@@ -90,13 +91,17 @@ export function KeysPage() {
       <span className="eyebrow">远程 MCP 客户端接入</span>
       <h1>MCP Keys</h1>
       <p>每个 Key 对应你的账号：用它调用的 MCP 工具只能读写你自己的 Context。创建后原文仅显示一次，请立即复制保存。</p>
-      {auth.isPending && <p>正在检查登录状态…</p>}
-      {!auth.isPending && !auth.data?.user && <p>请先使用右上角的 Google 登录。</p>}
+      {auth.isPending && <LoadingList rows={2} />}
+      {!auth.isPending && !auth.data?.user && <SignedOutNotice />}
       {auth.data?.user && <>
         <KeyForm pending={false} />
-        {query.error && <p role="alert">{query.error.message}</p>}
-        {query.isPending && <p>正在加载…</p>}
-        {keys && active.length === 0 && revoked.length === 0 && <p>还没有 Key。创建一个，把 MCP 客户端接入你的工作区。</p>}
+        <ErrorNotice error={query.error} />
+        {query.isPending && <LoadingList rows={2} />}
+        {keys && active.length === 0 && revoked.length === 0 && (
+          <Notice title="还没有 Key">
+            创建一个 API Key，把 MCP 客户端接入你的工作区。它只能读写你自己的 Context。
+          </Notice>
+        )}
         <div className="document-list">
           {active.map(key => (
             <div className="panel document-card" key={key.id}>

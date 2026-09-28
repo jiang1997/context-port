@@ -37,7 +37,9 @@ export function LoginButton() {
 
 export function AuthStatus() {
   const { data, isLoading } = useAuthSession();
-  if (isLoading) return <span className="auth-loading">…</span>;
+  // A fixed-size placeholder rather than an ellipsis, so the topbar does not
+  // reflow when the user menu replaces it.
+  if (isLoading) return <span className="auth-loading" role="status" aria-label="正在检查登录状态" />;
   if (data?.user) return <UserMenu user={data.user} />;
   return <LoginButton />;
 }

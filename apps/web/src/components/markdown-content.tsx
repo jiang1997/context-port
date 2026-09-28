@@ -1,17 +1,10 @@
 import { Suspense, lazy } from 'react';
+import { Skeleton } from './feedback';
 
 // react-markdown and its remark/rehype dependencies roughly double the bundle.
 // Only the Context and Thread detail views need it, so keep them out of the
 // initial payload and pay for them on first navigation to a document.
 const MarkdownBody = lazy(() => import('./markdown-body'));
-
-function MarkdownSkeleton() {
-  return (
-    <div className="markdown-skeleton" aria-hidden>
-      <span /><span /><span /><span />
-    </div>
-  );
-}
 
 /**
  * Context and Thread bodies are authored as Markdown, so render them as
@@ -25,7 +18,7 @@ export function MarkdownContent({ content }: { content: string }) {
 
   return (
     <div className="markdown">
-      <Suspense fallback={<MarkdownSkeleton />}>
+      <Suspense fallback={<Skeleton lines={4} />}>
         <MarkdownBody content={content} />
       </Suspense>
     </div>
