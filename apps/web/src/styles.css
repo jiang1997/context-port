@@ -4,8 +4,12 @@
   /* Surfaces, darkest to lightest. */
   --surface-0: #0a1012;
   --surface-1: #111a1d;
+  --surface-2: #172225;
   --surface-veil: rgba(10, 16, 18, .82);
   --surface-glow: #173231;
+  /* Translucent panel fills, kept apart from the opaque surface steps. */
+  --surface-panel: rgba(17, 26, 29, .75);
+  --surface-subtle: rgba(17, 26, 29, .5);
 
   /* Borders: dividers, then surfaces, then interactive controls. */
   --border-subtle: #1e2a2d;
@@ -23,6 +27,8 @@
   --accent: #76dfc8;
   --accent-hover: #8ff0da;
   --accent-dim: #71dbc5;
+  --accent-ring: rgba(118, 223, 200, .12);
+  --accent-underline: rgba(118, 223, 200, .4);
   --on-accent: #07100f;
 
   --danger: #ffaaa4;
@@ -137,11 +143,11 @@ p { margin: 0 0 var(--space-4); color: var(--text-muted); line-height: 1.65; }
 .task-form { margin-top: var(--space-10); display: grid; gap: var(--space-6); }
 .task-form label { display: grid; gap: var(--space-2); color: var(--text-secondary); font-size: var(--text-base); }
 .task-form input, .task-form textarea { width: 100%; padding: 13px var(--space-3); color: var(--text-primary); background: var(--surface-1); border: 1px solid var(--border-strong); border-radius: var(--radius-md); outline: none; resize: vertical; transition: border-color .15s ease, box-shadow .15s ease; }
-.task-form input:focus, .task-form textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(118, 223, 200, .12); }
+.task-form input:focus, .task-form textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-ring); }
 .form-actions { display: flex; align-items: center; gap: var(--space-4); }
 
 .detail-grid { display: grid; grid-template-columns: minmax(220px, 1fr) 3fr; gap: var(--space-5); margin-top: var(--space-10); }
-.panel { min-height: 280px; padding: var(--space-6); border: 1px solid var(--border); border-radius: var(--radius-lg); background: rgba(17, 26, 29, .75); }
+.panel { min-height: 280px; padding: var(--space-6); border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface-panel); }
 
 @media (max-width: 700px) {
   .topbar { height: auto; min-height: 76px; padding: var(--space-3) var(--space-5); flex-wrap: wrap; row-gap: 10px; }
@@ -155,7 +161,7 @@ p { margin: 0 0 var(--space-4); color: var(--text-muted); line-height: 1.65; }
 
 .document-list { display: grid; gap: var(--space-4); margin-top: var(--space-8); }
 .document-card { display: block; min-height: auto; transition: border-color .15s ease, background-color .15s ease, transform .15s ease; }
-.document-card:hover { border-color: var(--border-hover); background: rgba(23, 34, 37, .85); transform: translateY(-1px); }
+.document-card:hover { border-color: var(--border-hover); background: var(--surface-2); transform: translateY(-1px); }
 .document-card-link { display: block; border-radius: var(--radius-sm); }
 .document-card-link:hover h2 { color: var(--accent); }
 /* Loading, empty and error states. These were bare <p> elements in body grey,
@@ -170,7 +176,7 @@ p { margin: 0 0 var(--space-4); color: var(--text-muted); line-height: 1.65; }
 .skeleton .skeleton-heading { width: 45%; height: var(--space-8); }
 @keyframes skeleton-pulse { 0%, 100% { opacity: .45; } 50% { opacity: .9; } }
 
-.notice { display: grid; gap: var(--space-2); margin-top: var(--space-8); padding: var(--space-6); border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); background: rgba(17, 26, 29, .5); }
+.notice { display: grid; gap: var(--space-2); margin-top: var(--space-8); padding: var(--space-6); border: 1px dashed var(--border-strong); border-radius: var(--radius-lg); background: var(--surface-subtle); }
 .notice-title { margin: 0; color: var(--text-primary); font-weight: 650; }
 .notice-body { margin: 0; color: var(--text-muted); }
 .notice-action { margin-top: var(--space-2); }
@@ -197,7 +203,7 @@ p { margin: 0 0 var(--space-4); color: var(--text-muted); line-height: 1.65; }
 .markdown h4, .markdown h5, .markdown h6 { font-size: 1rem; }
 .markdown strong { color: var(--text-primary); font-weight: 650; }
 .markdown del { color: var(--text-faint); }
-.markdown a { color: var(--accent); text-decoration: underline; text-decoration-color: rgba(118, 223, 200, .4); text-underline-offset: 3px; transition: text-decoration-color .15s ease; }
+.markdown a { color: var(--accent); text-decoration: underline; text-decoration-color: var(--accent-underline); text-underline-offset: 3px; transition: text-decoration-color .15s ease; }
 .markdown a:hover { text-decoration-color: var(--accent); }
 .markdown ul, .markdown ol { margin: 0 0 var(--space-4); padding-left: var(--space-6); }
 .markdown li { margin: var(--space-1) 0; }
