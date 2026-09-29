@@ -10,6 +10,21 @@ Every creation atomically stores an immutable v1 revision. Editing, revision bro
 restoration, archiving, and custom ordering are deferred. Future edits must check
 `expectedVersion` and store a revision in the same transaction.
 
+## Temporary Context without sign-in
+
+Open `/clipboard` in the Web app. Enter a passphrase of at least 12 characters, or generate
+a random one. The first use creates a temporary Context; the same passphrase opens it again.
+Anyone with the passphrase can read and append content. It expires 24 hours after creation;
+using the passphrase after expiry creates a new, empty Context. Prefer generated passphrases
+for private content. The Web app does not put passphrases in URLs.
+
+Agents can call these anonymous JSON endpoints: `POST /api/v1/clipboard/generate` (no body),
+`/open` and `/read` (`{"passphrase":"..."}`), and `/append`
+(`{"passphrase":"...","content":"..."}`). Each append is limited to 20,000 characters;
+the Context is limited to 100,000 characters. The server stores only a keyed passphrase digest.
+Network deployments require a stable `CLIPBOARD_SECRET` of at least 32 characters and the
+`0005` database migration before deploying the new server.
+
 ## Local development
 
 Requires Node.js 24 LTS, pnpm 12.4.2, and Docker.

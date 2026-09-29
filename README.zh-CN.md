@@ -5,6 +5,25 @@
 人类与 Agent 共同维护 Context，并在其下使用 Thread 整理具体话题。
 当前 MVP 支持创建和读取；Thread 是文档，不是聊天消息。
 
+## 免登录临时 Context
+
+打开 Web 的 `/clipboard`：输入至少 12 个字符的口令，或点击 **Generate a passphrase**。
+首次使用口令会创建临时 Context；再次输入相同口令会进入同一份内容。任何知道口令的人或 Agent
+都可以读取和追加。内容在创建 24 小时后过期；再次使用相同口令会创建空白 Context。
+请优先使用随机生成的口令，避免用容易猜到的词。网页不会把口令写入 URL；离开后需重新输入。
+
+Agent 可调用以下免登录 REST 接口（请求和响应均为 JSON）：
+
+| 方法 | 路径 | 请求正文 | 功能 |
+| --- | --- | --- | --- |
+| POST | `/api/v1/clipboard/generate` | 无 | 生成口令并创建 Context |
+| POST | `/api/v1/clipboard/open` | `{"passphrase":"..."}` | 创建或进入 |
+| POST | `/api/v1/clipboard/read` | `{"passphrase":"..."}` | 读取已有 Context |
+| POST | `/api/v1/clipboard/append` | `{"passphrase":"...","content":"..."}` | 追加内容 |
+
+单次追加最多 20,000 字符，整体最多 100,000 字符。口令拥有完整读写权限，服务端仅保存带密钥的摘要。
+网络部署必须设置稳定的 `CLIPBOARD_SECRET`（至少 32 字符），并在部署新服务前运行 `0005` 迁移。
+
 ## 已实现
 
 - Web：Context 列表、创建、详情；Thread 创建、详情，读取结果每 5 秒刷新。

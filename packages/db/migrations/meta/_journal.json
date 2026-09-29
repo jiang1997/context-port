@@ -36,6 +36,13 @@
       "when": 1790667400000,
       "tag": "0004_require_context_owner",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790670000000,
+      "tag": "0005_clipboards",
+      "breakpoints": true
     }
   ]
 }

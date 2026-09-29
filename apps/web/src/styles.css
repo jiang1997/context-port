@@ -254,3 +254,11 @@ button:disabled { opacity: .5; cursor: default; }
 .copy-id-feedback { font-size: var(--text-xs); color: var(--accent-dim); min-height: 1em; }
 .context-id-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .context-id-label { font: 600 var(--text-xs)/1.2 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent-dim); }
+.clipboard-entry { margin-top: var(--space-8); }
+.clipboard-entry .task-form { margin-top: var(--space-5); }
+.clipboard-entry .panel-hint, .clipboard-access .panel-hint { margin-top: var(--space-5); }
+.clipboard-access { min-height: auto; margin: var(--space-8) 0 var(--space-6); }
+.clipboard-access code { flex: 1; }
+.clipboard-expiry { margin-bottom: var(--space-4); }
+.clipboard-compose { min-height: auto; margin-top: var(--space-6); }
+.clipboard-compose .button { justify-self: start; }

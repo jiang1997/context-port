@@ -19,6 +19,7 @@ const EnvironmentSchema = z
     WEB_ORIGIN: z.string().url().default('http://localhost:5173'),
     WEB_EXTRA_ORIGINS: z.string().default(''),
     DEPLOYMENT_MODE: z.enum(['local', 'network']).default('local'),
+    CLIPBOARD_SECRET: z.string().min(32).optional(),
     /** Google OAuth Web client. Auth is optional locally so existing flows keep working. */
     GOOGLE_CLIENT_ID: z.preprocess(value => value === '' ? undefined : value, z.string().optional()),
     GOOGLE_CLIENT_SECRET: z.preprocess(value => value === '' ? undefined : value, z.string().optional()),
@@ -35,6 +36,9 @@ const EnvironmentSchema = z
         path: ['HOST'],
         message: 'Local mode must bind to 127.0.0.1.',
       });
+    }
+    if (value.DEPLOYMENT_MODE === 'network' && !value.CLIPBOARD_SECRET) {
+      context.addIssue({ code: 'custom', path: ['CLIPBOARD_SECRET'], message: 'Network mode requires CLIPBOARD_SECRET (32+ characters).' });
     }
     const googleKeys = [value.GOOGLE_CLIENT_ID, value.GOOGLE_CLIENT_SECRET, value.PUBLIC_BASE_URL];
     if (googleKeys.some(Boolean) && !googleKeys.every(Boolean)) {

@@ -51,6 +51,12 @@ describe('REST/MCP identity protection', () => {
     await expect(guard().canActivate(request('/api/v1/auth/me'))).resolves.toBe(true);
     await expect(guard().canActivate(request('/api/v1/contexts'))).rejects.toThrow();
   });
+  it('allows anonymous clipboard calls but keeps other Context routes private', async () => {
+    await expect(guard().canActivate(request('/api/v1/clipboard/open', {}, '127.0.0.1', 'POST'))).resolves.toBe(true);
+    await expect(guard().canActivate(request('/api/v1/clipboard/read', {}, '127.0.0.1', 'POST'))).resolves.toBe(true);
+    await expect(guard().canActivate(request('/api/v1/contexts', {}, '127.0.0.1', 'POST'))).rejects.toThrow(UnauthorizedException);
+    await expect(guard().canActivate(request('/api/v1/clipboard/open', { origin: 'https://untrusted.example' }, '127.0.0.1', 'POST'))).rejects.toThrow(ForbiddenException);
+  });
   it('resolves personal API keys to their owning user', async () => {
     apiKeys.resolve.mockResolvedValue('user-uuid');
     const context = request('/mcp', { authorization: 'Bearer cpk_some-key-value' });
