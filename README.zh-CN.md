@@ -33,6 +33,18 @@ Web：`http://localhost:5173`；REST：`http://127.0.0.1:3000/api/v1`；
 MCP：`http://127.0.0.1:3000/mcp`（Streamable HTTP，无状态）。
 使用 localhost 打开 Web，与默认 WEB_ORIGIN 保持一致。
 
+Agent 无需安装或配置 MCP 客户端，也可以使用在 Web 的 API Keys 页面创建的个人 Key，
+通过 curl 调用 REST 接口读取 JSON。下面是本地示例；部署后将地址换成 API 服务地址：
+
+```bash
+curl -fsS -H 'Authorization: Bearer <api-key>' 'http://127.0.0.1:3000/api/v1/contexts?limit=50&offset=0'
+curl -fsS -H 'Authorization: Bearer <api-key>' 'http://127.0.0.1:3000/api/v1/contexts/<context-id>'
+curl -fsS -H 'Authorization: Bearer <api-key>' 'http://127.0.0.1:3000/api/v1/contexts/<context-id>/threads/<thread-id>'
+```
+
+Context 详情包含 Thread 索引，Thread 正文需单独读取。Key 具有当前账户 Context 的读写权限；
+只交给可信任的 Agent，不再需要时可在 API Keys 页面撤销。
+
 REST 接口：
 
 | 方法 | 路径 | 功能 |

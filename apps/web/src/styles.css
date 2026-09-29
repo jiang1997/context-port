@@ -141,6 +141,11 @@ p { margin: 0 0 var(--space-4); color: var(--text-muted); line-height: 1.65; }
 .user-logout:disabled { opacity: 0.5; cursor: default; }
 .key-banner code { display: block; word-break: break-all; padding: 10px; background: var(--surface-1); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 .key-row { display: flex; align-items: flex-start; gap: var(--space-2); margin: var(--space-2) 0; }
+.key-row code { min-width: 0; flex: 1; }
+.key-row .button { flex: none; }
+.key-banner h2 { margin-top: var(--space-8); }
+.key-command-label { margin: var(--space-4) 0 0; color: var(--text-secondary); font-size: var(--text-sm); }
+.key-banner .panel-hint { margin-top: var(--space-5); }
 .key-revoked { opacity: 0.55; }
 .auth-loading { display: inline-block; width: 108px; height: 28px; border-radius: var(--radius-full); background: var(--surface-1); animation: skeleton-pulse 1.4s ease-in-out infinite; }
 

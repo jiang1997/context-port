@@ -5,8 +5,16 @@ import { useAuthSession } from '../components/auth-status';
 import { ErrorNotice, LoadingList, Notice, SignedOutNotice } from '../components/feedback';
 import { formatDateTime } from '../lib/format';
 
-/** Remote MCP clients talk to the API host directly (never through the web origin). */
-const MCP_ENDPOINT = 'https://contextport-server-sg.onrender.com/mcp';
+/** CLI clients talk to the API host directly, not the browser's web origin. */
+const API_ORIGIN = import.meta.env.DEV
+  ? 'http://127.0.0.1:3000'
+  : 'https://contextport-server-sg.onrender.com';
+const MCP_ENDPOINT = `${API_ORIGIN}/mcp`;
+const REST_ENDPOINT = `${API_ORIGIN}/api/v1`;
+
+function curlCommand(key: string, path: string) {
+  return `curl -fsS -H 'Authorization: Bearer ${key}' '${REST_ENDPOINT}${path}'`;
+}
 
 function CopyButton({ value }: { value: string }) {
   const [copied, setCopied] = useState(false);
@@ -23,7 +31,15 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
+function CommandRow({ command }: { command: string }) {
+  return <div className="key-row key-command">
+    <code>{command}</code>
+    <CopyButton value={command} />
+  </div>;
+}
+
 function NewKeyBanner({ name, rawKey }: { name: string; rawKey: string }) {
+  const mcpCommand = `claude mcp add --transport http contextport ${MCP_ENDPOINT} --header "Authorization: Bearer ${rawKey}"`;
   return (
     <div className="panel key-banner">
       <p><strong>Key &quot;{name}&quot; created.</strong>For security it is shown only this once; the server stores just its hash.</p>
@@ -31,11 +47,17 @@ function NewKeyBanner({ name, rawKey }: { name: string; rawKey: string }) {
         <code>{rawKey}</code>
         <CopyButton value={rawKey} />
       </div>
-      <p>Configure it in your MCP client now:</p>
-      <div className="key-row">
-        <code>{`claude mcp add --transport http contextport ${MCP_ENDPOINT} --header "Authorization: Bearer ${rawKey}"`}</code>
-        <CopyButton value={`claude mcp add --transport http contextport ${MCP_ENDPOINT} --header "Authorization: Bearer ${rawKey}"`} />
-      </div>
+      <h2>Quick access with curl</h2>
+      <p>Give these commands to an Agent that can run curl. The REST API returns JSON and needs no MCP setup.</p>
+      <p className="key-command-label">List your Contexts</p>
+      <CommandRow command={curlCommand(rawKey, '/contexts?limit=50&offset=0')} />
+      <p className="key-command-label">Read a Context and its Thread index</p>
+      <CommandRow command={curlCommand(rawKey, '/contexts/<context-id>')} />
+      <p className="key-command-label">Read a Thread</p>
+      <CommandRow command={curlCommand(rawKey, '/contexts/<context-id>/threads/<thread-id>')} />
+      <p className="key-command-label">Or configure an MCP client</p>
+      <CommandRow command={mcpCommand} />
+      <p className="panel-hint">Replace the IDs with values from the preceding response. These commands contain your key; share it only with an Agent you trust. Revoke the key below when access is no longer needed.</p>
     </div>
   );
 }
@@ -89,9 +111,9 @@ export function KeysPage() {
 
   return (
     <div className="page">
-      <span className="eyebrow">Connect remote MCP clients</span>
-      <h1>MCP Keys</h1>
-      <p>Each key is scoped to your account: MCP tools called with it can only read and write your own Contexts. A key is shown once, so copy it when you create it.</p>
+      <span className="eyebrow">Connect agents</span>
+      <h1>API Keys</h1>
+      <p>Use a key with an MCP client or let an Agent call the REST API with curl. Each key can read and write only your own Contexts. A key is shown once, so copy it when you create it.</p>
       {auth.isPending && <LoadingList rows={2} />}
       {!auth.isPending && !auth.data?.user && <SignedOutNotice />}
       {auth.data?.user && <>
@@ -100,7 +122,7 @@ export function KeysPage() {
         {query.isPending && <LoadingList rows={2} />}
         {keys && active.length === 0 && revoked.length === 0 && (
           <Notice title="No keys yet">
-            Create an API key to connect an MCP client to your workspace. It can only read and write your own Contexts.
+            Create an API key to let an Agent access your Contexts through curl or MCP.
           </Notice>
         )}
         <div className="document-list">

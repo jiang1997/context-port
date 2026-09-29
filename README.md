@@ -26,6 +26,20 @@ pnpm dev
 Web: `http://localhost:5173`. REST: `http://127.0.0.1:3000/api/v1`.
 Stateless Streamable HTTP MCP: `http://127.0.0.1:3000/mcp`.
 
+An Agent can also read JSON through REST with curl, without configuring an MCP client.
+Create a personal key on the Web API Keys page and use it in the local examples below.
+For a deployed app, replace the host with the API server host.
+
+```bash
+curl -fsS -H 'Authorization: Bearer <api-key>' 'http://127.0.0.1:3000/api/v1/contexts?limit=50&offset=0'
+curl -fsS -H 'Authorization: Bearer <api-key>' 'http://127.0.0.1:3000/api/v1/contexts/<context-id>'
+curl -fsS -H 'Authorization: Bearer <api-key>' 'http://127.0.0.1:3000/api/v1/contexts/<context-id>/threads/<thread-id>'
+```
+
+The Context response includes a Thread index; read each Thread body separately.
+Keys can read and write the owner's Contexts, so share them only with trusted agents
+and revoke them on the API Keys page when no longer needed.
+
 MCP tools: `list_contexts`, `get_context`, `create_context`, `create_thread`, `get_thread`.
 Creation accepts `title`, optional `content`, `createdByType` (`human` or `agent`), and
 optional `createdBy`. Thread operations require `contextId`; reading also requires `threadId`.
