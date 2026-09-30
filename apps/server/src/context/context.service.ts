@@ -1,7 +1,7 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { and, asc, desc, eq, getTableColumns, isNull } from 'drizzle-orm';
 import { contexts, threads, revisions, type Database } from '@contextport/db';
-import { CreateContextSchema, ListContextsSchema, type CreateContextInput } from '@contextport/contracts';
+import { CreateContextSchema, ListContextsSchema, UpdateContextSchema, UpdateThreadSchema, type CreateContextInput, type UpdateContextInput, type UpdateThreadInput } from '@contextport/contracts';
 import { DATABASE } from '../db/db.module.js';
 
 type Source = 'rest' | 'mcp';
@@ -74,6 +74,70 @@ export class ContextService {
         title: thread.title, content: thread.content, createdByType: thread.createdByType,
         createdBy: thread.createdBy, source });
       return thread;
+    });
+  }
+
+  async updateThread(userId: string, contextId: string, threadId: string, input: UpdateThreadInput, source: Source) {
+    const data = UpdateThreadSchema.parse(input);
+    return this.db.transaction(async tx => {
+      const [current] = await tx.select().from(threads)
+        .innerJoin(contexts, eq(threads.contextId, contexts.id))
+        .where(and(eq(threads.contextId, contextId), eq(threads.id, threadId), eq(contexts.ownerUserId, userId)))
+        .then(rows => rows.map(r => r.threads));
+      if (!current) throw new NotFoundException({ code: 'THREAD_NOT_FOUND', message: 'Thread not found in this Context.' });
+      if (current.archivedAt) throw new NotFoundException({ code: 'THREAD_NOT_FOUND', message: 'Thread not found in this Context.' });
+      if (current.version !== data.expectedVersion) {
+        throw new ConflictException({ code: 'VERSION_CONFLICT', message: 'Version conflict. Re-read, merge, then retry.',
+          details: { expectedVersion: data.expectedVersion, currentVersion: current.version } });
+      }
+      const [updated] = await tx.update(threads).set({
+        ...(data.title !== undefined ? { title: data.title } : {}),
+        ...(data.content !== undefined ? { content: data.content } : {}),
+        version: current.version + 1,
+        updatedByType: data.updatedByType, updatedBy: data.updatedBy ?? null,
+        updatedAt: new Date().toISOString(),
+      }).where(and(eq(threads.id, threadId), eq(threads.version, data.expectedVersion))).returning();
+      if (!updated) {
+        throw new ConflictException({ code: 'VERSION_CONFLICT', message: 'Version conflict. Re-read, merge, then retry.',
+          details: { expectedVersion: data.expectedVersion } });
+      }
+      await tx.insert(revisions).values({ threadId: updated.id, version: updated.version,
+        title: updated.title, content: updated.content, createdByType: updated.updatedByType,
+        createdBy: updated.updatedBy, source });
+      return updated;
+    });
+  }
+
+  async update(userId: string, id: string, input: UpdateContextInput, source: Source) {
+    const data = UpdateContextSchema.parse(input);
+    return this.db.transaction(async tx => {
+      const [current] = await tx.select().from(contexts)
+        .where(and(eq(contexts.id, id), this.ownership(userId)));
+      if (!current) throw new NotFoundException({ code: 'CONTEXT_NOT_FOUND', message: 'Context not found.' });
+      if (current.archivedAt) throw new NotFoundException({ code: 'CONTEXT_NOT_FOUND', message: 'Context not found.' });
+      if (current.version !== data.expectedVersion) {
+        throw new ConflictException({ code: 'VERSION_CONFLICT', message: 'Version conflict. Re-read, merge, then retry.',
+          details: { expectedVersion: data.expectedVersion, currentVersion: current.version } });
+      }
+      const [updated] = await tx.update(contexts).set({
+        ...(data.title !== undefined ? { title: data.title } : {}),
+        ...(data.content !== undefined ? { content: data.content } : {}),
+        version: current.version + 1,
+        updatedByType: data.updatedByType, updatedBy: data.updatedBy ?? null,
+        updatedAt: new Date().toISOString(),
+      }).where(and(eq(contexts.id, id), eq(contexts.version, data.expectedVersion))).returning();
+      if (!updated) {
+        throw new ConflictException({ code: 'VERSION_CONFLICT', message: 'Version conflict. Re-read, merge, then retry.',
+          details: { expectedVersion: data.expectedVersion } });
+      }
+      await tx.insert(revisions).values({ contextId: updated.id, version: updated.version,
+        title: updated.title, content: updated.content, createdByType: updated.updatedByType,
+        createdBy: updated.updatedBy, source });
+      const { content: _, ...summary } = getTableColumns(threads);
+      const index = await tx.select(summary).from(threads)
+        .where(and(eq(threads.contextId, id), isNull(threads.archivedAt)))
+        .orderBy(asc(threads.createdAt), asc(threads.id));
+      return { ...updated, threads: index };
     });
   }
 

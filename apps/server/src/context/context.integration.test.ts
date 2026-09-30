@@ -52,7 +52,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Context MVP integration', () =>
     const context = (await request(http).post('/api/v1/contexts')
       .send({ title: 'Shared project', content: '# Background', createdByType: 'human' }).expect(201)).body;
     const tools = await client.listTools();
-    expect(tools.tools.map(t => t.name).sort()).toEqual(['create_context', 'create_thread', 'get_context', 'get_thread', 'list_contexts']);
+    expect(tools.tools.map(t => t.name).sort()).toEqual(['create_context', 'create_thread', 'get_context', 'get_thread', 'list_contexts', 'update_context', 'update_thread']);
     const created = await client.callTool({ name: 'create_thread', arguments: {
       contextId: context.id, title: 'Deployment', content: 'Agent details', createdByType: 'agent', createdBy: 'test-agent',
     } });
@@ -85,6 +85,27 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Context MVP integration', () =>
       .send({ title: 'Orphan', createdByType: 'agent' }).expect(404);
     const missing = await client.callTool({ name: 'create_thread', arguments: { contextId: randomUUID(), title: 'Orphan', createdByType: 'agent' } });
     expect(missing.isError).toBe(true);
+  });
+  it('updates Contexts and Threads with optimistic concurrency', async () => {
+    const http = app.getHttpServer();
+    const context = (await request(http).post('/api/v1/contexts')
+      .send({ title: 'Editable', content: 'v1', createdByType: 'human' }).expect(201)).body;
+    await request(http).patch(`/api/v1/contexts/${context.id}`)
+      .send({ content: 'v2', updatedByType: 'human', expectedVersion: 2 }).expect(409);
+    const updated = (await request(http).patch(`/api/v1/contexts/${context.id}`)
+      .send({ content: 'v2', updatedByType: 'human', expectedVersion: 1 }).expect(200)).body;
+    expect(updated).toMatchObject({ version: 2, content: 'v2' });
+    const thread = (await request(http).post(`/api/v1/contexts/${context.id}/threads`)
+      .send({ title: 'T', content: 't1', createdByType: 'human' }).expect(201)).body;
+    const mcpUpdate = await client.callTool({ name: 'update_thread', arguments: {
+      contextId: context.id, threadId: thread.id, content: 't2', updatedByType: 'agent', expectedVersion: 1 } });
+    expect(mcpUpdate.isError).not.toBe(true);
+    const stale = await client.callTool({ name: 'update_thread', arguments: {
+      contextId: context.id, threadId: thread.id, content: 'stale', updatedByType: 'agent', expectedVersion: 1 } });
+    expect(stale.isError).toBe(true);
+    expect(JSON.stringify(stale.content)).toContain('VERSION_CONFLICT');
+    const snapshots = await bundle.db.select().from(revisions).where(eq(revisions.threadId, thread.id));
+    expect(snapshots.map(s => s.version).sort()).toEqual([1, 2]);
   });
   it('rolls back a Context if its snapshot cannot be saved', async () => {
     await bundle.db.execute(sql`CREATE FUNCTION reject_test_revision() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.title = '__fail_snapshot__' THEN RAISE EXCEPTION 'test failure'; END IF; RETURN NEW; END; $$`);
