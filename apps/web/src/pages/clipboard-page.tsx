@@ -128,7 +128,7 @@ export function ClipboardPage() {
     <section className="panel clipboard-access">
       <h2>Use with an agent</h2>
       <p className="panel-hint">No login needed — copy the guide and paste it to your agent.</p>
-      <ol className="panel-hint">
+      <ol className="agent-steps panel-hint">
         <li>Create: <code className="context-id-code">POST /clipboard/generate</code> (random passphrase) or <code className="context-id-code">POST /clipboard/open</code> (your own 12–128 char passphrase).</li>
         <li>Read: <code className="context-id-code">POST /clipboard/read</code> with <code className="context-id-code">{'{ "passphrase" }'}</code>.</li>
         <li>Append: <code className="context-id-code">POST /clipboard/append</code> with <code className="context-id-code">{'{ "passphrase", "content" }'}</code>.</li>

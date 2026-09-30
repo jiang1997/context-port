@@ -258,7 +258,12 @@ button:disabled { opacity: .5; cursor: default; }
 .clipboard-entry .task-form { margin-top: var(--space-5); }
 .clipboard-entry .panel-hint, .clipboard-access .panel-hint { margin-top: var(--space-5); }
 .clipboard-access { min-height: auto; margin: var(--space-8) 0 var(--space-6); }
-.clipboard-access code { flex: 1; }
+.clipboard-access .form-actions code { flex: 1; }
+.clipboard-access .agent-steps { margin: var(--space-4) 0 0; padding-left: var(--space-6); }
+.clipboard-access .agent-steps li { margin: var(--space-2) 0; line-height: 1.9; }
+/* Endpoint chips inside list text must stay inside their own line box:
+   an inline element's vertical padding would bleed into neighbouring lines. */
+.clipboard-access .agent-steps .context-id-code { display: inline-block; padding: 1px 8px; vertical-align: baseline; }
 .clipboard-expiry { margin-bottom: var(--space-4); }
 .clipboard-compose { min-height: auto; margin-top: var(--space-6); }
 .clipboard-compose .button { justify-self: start; }
