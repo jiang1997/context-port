@@ -152,7 +152,7 @@ export function ClipboardPage() {
   return (
     <Layout
       height="auto"
-      contentWidth={720}
+      contentWidth={1120}
       content={
         <Stack gap={4}>
           <Stack gap={2}>

@@ -132,7 +132,7 @@ export function ContextCreatePage() {
   return (
     <Layout
       height="auto"
-      contentWidth={720}
+      contentWidth={1120}
       content={
         <Stack gap={4}>
           <Link href="/contexts">← My Contexts</Link>
