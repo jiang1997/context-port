@@ -36,7 +36,7 @@ export function ContextListPage() {
     <div className="page-heading">
       <div>
         <span className="eyebrow">A shared knowledge space</span>
-        <h1>Contexts</h1>
+        <h1>My Contexts</h1>
       </div>
       {auth.data?.user && <Link className="button" to="/contexts/new">New Context</Link>}
     </div>
@@ -80,7 +80,7 @@ export function ContextDetailPage() {
   const client = useQueryClient(); const navigate = useNavigate();
   const mutation = useMutation({ mutationFn: (data: CreateContextInput) => apiRequest<Thread>(`/contexts/${contextId}/threads`, { method: 'POST', body: JSON.stringify(data) }),
     onSuccess: async data => { await client.invalidateQueries({ queryKey: ['context', contextId] }); navigate(`/contexts/${contextId}/threads/${data.id}`); } });
-  return <div className="page"><Link className="back-link" to="/contexts">← All Contexts</Link><ErrorNotice error={query.error} />
+  return <div className="page"><Link className="back-link" to="/contexts">← My Contexts</Link><ErrorNotice error={query.error} />
     {query.isPending && <Skeleton lines={6} heading />}{query.data && <>
     <h1>{query.data.title}</h1><p className="meta">{query.data.createdBy ?? query.data.createdByType} · v{query.data.version}</p>
     <p className="context-id-line"><span className="context-id-label">Context ID</span> <CopyContextIdButton contextId={query.data.id} /></p>

@@ -17,7 +17,7 @@ export function AppShell({ children }: PropsWithChildren) {
           <NavLink to="/" end>
             Temporary Context
           </NavLink>
-          <NavLink to="/contexts">Contexts</NavLink>
+          <NavLink to="/contexts">My Contexts</NavLink>
           <NavLink to="/keys">MCP Keys</NavLink>
           <AuthStatus />
         </nav>
