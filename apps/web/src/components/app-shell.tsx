@@ -9,6 +9,7 @@ export function AppShellLayout({ children }: PropsWithChildren) {
   const path = location.pathname;
   return (
     <AstryxAppShell
+      variant="section"
       height="auto"
       contentPadding={4}
       topNav={
