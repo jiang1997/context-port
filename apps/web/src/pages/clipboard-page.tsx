@@ -125,6 +125,19 @@ export function ClipboardPage() {
     <span className="eyebrow">No account needed</span>
     <h1>Temporary Context</h1>
     <p>Share a passphrase with another person or Agent to read and add to the same Context. It expires 24 hours after creation.</p>
+    <section className="panel clipboard-access">
+      <h2>Use with an agent</h2>
+      <p className="panel-hint">No login needed — copy the guide and paste it to your agent.</p>
+      <ol className="panel-hint">
+        <li>Create: <code className="context-id-code">POST /clipboard/generate</code> (random passphrase) or <code className="context-id-code">POST /clipboard/open</code> (your own 12–128 char passphrase).</li>
+        <li>Read: <code className="context-id-code">POST /clipboard/read</code> with <code className="context-id-code">{'{ "passphrase" }'}</code>.</li>
+        <li>Append: <code className="context-id-code">POST /clipboard/append</code> with <code className="context-id-code">{'{ "passphrase", "content" }'}</code>.</li>
+      </ol>
+      <div className="form-actions">
+        <button className="button button-secondary button-small" onClick={() => void copyAgentGuide()}>{copiedGuide ? 'Copied' : 'Copy agent guide'}</button>
+        <span role="status" aria-live="polite" className="copy-id-feedback">{copiedGuide ? 'Agent guide with curl commands copied.' : ''}</span>
+      </div>
+    </section>
     {!passphrase ? <section className="panel clipboard-entry">
       <h2>Open a Context</h2>
       <form className="task-form" onSubmit={submitEntry}>
@@ -156,18 +169,5 @@ export function ClipboardPage() {
         </form>
       </>}
     </>}
-    <section className="panel clipboard-compose">
-      <h2>Use with an agent</h2>
-      <p className="panel-hint">No login needed — an agent can create, read and append via curl using only the passphrase. Copy the guide below and paste it to your agent.</p>
-      <ol className="panel-hint">
-        <li>Create: <code className="context-id-code">POST /clipboard/generate</code> (random passphrase) or <code className="context-id-code">POST /clipboard/open</code> (your own 12–128 char passphrase).</li>
-        <li>Read: <code className="context-id-code">POST /clipboard/read</code> with <code className="context-id-code">{'{ "passphrase" }'}</code>.</li>
-        <li>Append: <code className="context-id-code">POST /clipboard/append</code> with <code className="context-id-code">{'{ "passphrase", "content" }'}</code>.</li>
-      </ol>
-      <div className="form-actions">
-        <button className="button button-secondary button-small" onClick={() => void copyAgentGuide()}>{copiedGuide ? 'Copied' : 'Copy agent guide'}</button>
-        <span role="status" aria-live="polite" className="copy-id-feedback">{copiedGuide ? 'Agent guide with curl commands copied.' : ''}</span>
-      </div>
-    </section>
   </div>;
 }
