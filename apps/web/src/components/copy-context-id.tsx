@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { Button } from '@astryxdesign/core/Button';
+import { Text } from '@astryxdesign/core/Text';
+import { Stack } from '@astryxdesign/core/Stack';
 
 export function shortContextId(id: string): string {
   return id.length > 8 ? `${id.slice(0, 8)}…` : id;
@@ -50,26 +53,20 @@ export function CopyContextIdButton({ contextId, compact = false }: { contextId:
   }
 
   return (
-    <span className={compact ? 'context-id context-id-compact' : 'context-id'}>
-      <code
-        className="context-id-code"
-        title={compact ? contextId : undefined}
-        aria-label={compact ? `Context ID ${contextId}` : undefined}
-      >
+    <Stack direction="horizontal" gap={2} vAlign="center" wrap="wrap">
+      <Text type="code" maxLines={1}>
         {compact && status !== 'failed' ? shortContextId(contextId) : contextId}
-      </code>
-      <button
-        type="button"
-        className="button button-small copy-id-button"
+      </Text>
+      <Button
+        label={status === 'copied' ? 'Copied' : 'Copy ID'}
+        variant="secondary"
+        size="sm"
         onClick={handleClick}
-        aria-label={`Copy Context ID ${contextId}`}
-        title="Copy the full Context ID"
-      >
-        {status === 'copied' ? 'Copied' : 'Copy ID'}
-      </button>
-      <span role="status" aria-live="polite" className="copy-id-feedback">
-        {status === 'copied' ? 'Context ID copied' : status === 'failed' ? 'Copy failed. Select the full ID and copy it manually.' : ''}
-      </span>
-    </span>
+        tooltip="Copy the full Context ID"
+      />
+      <Text type="supporting" aria-live="polite">
+        {status === 'failed' ? 'Copy failed. Select the full ID and copy it manually.' : ''}
+      </Text>
+    </Stack>
   );
 }

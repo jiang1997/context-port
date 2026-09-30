@@ -1,70 +1,64 @@
 import type { ReactNode } from 'react';
-import { googleLoginUrl } from '../api/auth';
 import { useLocation } from 'react-router-dom';
+import { Banner } from '@astryxdesign/core/Banner';
+import { Button } from '@astryxdesign/core/Button';
+import { EmptyState } from '@astryxdesign/core/EmptyState';
+import { Skeleton as AstryxSkeleton } from '@astryxdesign/core/Skeleton';
+import { Stack } from '@astryxdesign/core/Stack';
+import { googleLoginUrl } from '../api/auth';
 
-/**
- * Placeholder bars shown while a query is in flight, so the page keeps its
- * shape instead of collapsing to a single line of body text.
- */
 export function Skeleton({ lines = 3, heading = false }: { lines?: number; heading?: boolean }) {
   return (
-    <div className="skeleton" aria-hidden>
-      {heading && <span className="skeleton-heading" />}
-      {Array.from({ length: lines }, (_, index) => <span key={index} />)}
-    </div>
+    <Stack gap={2}>
+      {heading && <AstryxSkeleton width="45%" height={28} />}
+      {Array.from({ length: lines }, (_, index) => (
+        <AstryxSkeleton key={index} index={index} width="100%" height={16} />
+      ))}
+    </Stack>
   );
 }
 
 export function LoadingList({ rows = 3 }: { rows?: number }) {
   return (
-    <div className="document-list" role="status" aria-label="Loading">
+    <Stack gap={3}>
       {Array.from({ length: rows }, (_, index) => (
-        <div className="panel document-card" key={index}>
-          <Skeleton lines={2} heading />
-        </div>
+        <Stack key={index} gap={2}>
+          <AstryxSkeleton width="40%" height={22} index={index} />
+          <AstryxSkeleton width="100%" height={16} index={index + 1} />
+        </Stack>
       ))}
-    </div>
+    </Stack>
   );
 }
 
-/**
- * Empty and signed-out states. These used to be bare sentences in the same
- * grey as body copy, which made "you have no data yet" and "your document is
- * empty" indistinguishable from content.
- */
 export function Notice({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
+  // EmptyState only takes a string description, so rich children (lists,
+  // links, markup) render below the empty state instead of being dropped.
+  const description = typeof children === 'string' ? children : null;
   return (
-    <div className="notice">
-      <p className="notice-title">{title}</p>
-      {children ? <p className="notice-body">{children}</p> : null}
-      {action ? <div className="notice-action">{action}</div> : null}
-    </div>
+    <Stack gap={2}>
+      <EmptyState
+        title={title}
+        {...(description != null ? { description } : {})}
+        actions={action}
+      />
+      {typeof children === 'string' ? null : children}
+    </Stack>
   );
 }
 
-/** Shown on every data-backed page until the session check resolves. */
 export function SignedOutNotice() {
   const location = useLocation();
   return (
-    <Notice
+    <EmptyState
       title="Not signed in"
-      action={
-        <a className="button" href={googleLoginUrl(location.pathname)} rel="noreferrer">
-          Sign in with Google
-        </a>
-      }
-    >
-      Sign in to create Contexts and to connect your agents to this workspace over MCP.
-    </Notice>
+      description="Sign in to create Contexts and to connect your agents to this workspace over MCP."
+      actions={<Button label="Sign in with Google" variant="primary" href={googleLoginUrl(location.pathname)} />}
+    />
   );
 }
 
 export function ErrorNotice({ error }: { error: Error | null }) {
   if (!error) return null;
-  return (
-    <div className="notice notice-error" role="alert">
-      <p className="notice-title">Something went wrong</p>
-      <p className="notice-body">{error.message}</p>
-    </div>
-  );
+  return <Banner status="error" title="Something went wrong" description={error.message} container="card" />;
 }

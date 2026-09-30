@@ -1,28 +1,33 @@
 import type { PropsWithChildren } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
+import { AppShell as AstryxAppShell } from '@astryxdesign/core/AppShell';
+import { TopNav, TopNavHeading, TopNavItem } from '@astryxdesign/core/TopNav';
 import { AuthStatus } from './auth-status';
 
-export function AppShell({ children }: PropsWithChildren) {
+export function AppShellLayout({ children }: PropsWithChildren) {
+  const location = useLocation();
+  const path = location.pathname;
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <Link className="brand" to="/">
-          <span className="brand-mark">CP</span>
-          <span>
-            <strong>ContextPort</strong>
-            <small>Human ↔ Agent workspace</small>
-          </span>
-        </Link>
-        <nav aria-label="Main navigation">
-          <NavLink to="/" end>
-            Temporary Context
-          </NavLink>
-          <NavLink to="/contexts">My Contexts</NavLink>
-          <NavLink to="/keys">MCP Keys</NavLink>
-          <AuthStatus />
-        </nav>
-      </header>
-      <main>{children}</main>
-    </div>
+    <AstryxAppShell
+      height="auto"
+      contentPadding={0}
+      topNav={
+        <TopNav
+          label="Main navigation"
+          heading={<TopNavHeading heading="ContextPort" headingHref="/" subheading="Human ↔ Agent workspace" />}
+          endContent={<AuthStatus />}
+        >
+          <TopNavItem href="/" label="Temporary Context" isSelected={path === '/'} />
+          <TopNavItem href="/contexts" label="Contexts" isSelected={path.startsWith('/contexts')} />
+          <TopNavItem href="/keys" label="MCP Keys" isSelected={path.startsWith('/keys')} />
+        </TopNav>
+      }
+    >
+      {children}
+    </AstryxAppShell>
   );
 }
+
+// Keep old name for routes.tsx compatibility.
+export const AppShellWrapper = AppShellLayout;
+export { AppShellLayout as AppShell };
