@@ -1,9 +1,8 @@
 import type { PropsWithChildren } from 'react';
-import { Link, NavLink, useLocation } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { AuthStatus } from './auth-status';
 
 export function AppShell({ children }: PropsWithChildren) {
-  const onClipboard = useLocation().pathname === '/clipboard';
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -15,12 +14,12 @@ export function AppShell({ children }: PropsWithChildren) {
           </span>
         </Link>
         <nav aria-label="Main navigation">
-          <NavLink to="/clipboard">Temporary Context</NavLink>
           <NavLink to="/" end>
-            Contexts
+            Temporary Context
           </NavLink>
+          <NavLink to="/contexts">Contexts</NavLink>
           <NavLink to="/keys">MCP Keys</NavLink>
-          {!onClipboard && <AuthStatus />}
+          <AuthStatus />
         </nav>
       </header>
       <main>{children}</main>
