@@ -160,7 +160,7 @@ export function ClipboardPage() {
           <Stack gap={2}>
             <Text type="label">No account needed</Text>
             <Heading level={1}>Temporary Context</Heading>
-            <Text type="body">Share a passphrase with another person or Agent to read and add to the same Context. It expires 7 days after creation.</Text>
+            <Text type="body">A temporary, login-free workspace to share task context with people or AI agents. Automatically expires in 7 days.</Text>
           </Stack>
           <TabList value={activeTab} onChange={val => setActiveTab(val as 'agent' | 'human')} hasDivider role="tablist">
             <Tab value="agent" label="For Agents" />
@@ -171,7 +171,7 @@ export function ClipboardPage() {
             !passphrase ? (
               <Card>
                 <Stack gap={3}>
-                  <Heading level={2}>Open a Context</Heading>
+                  <Heading level={2}>Open or Create a Context</Heading>
                   <form onSubmit={submitEntry}>
                     <Stack gap={3}>
                       <TextInput
@@ -184,12 +184,12 @@ export function ClipboardPage() {
                         {...(entryError ? { status: { type: 'error' as const, message: entryError } } : {})}
                       />
                       <Stack direction="horizontal" gap={3} wrap="wrap">
-                        <Button label="Create or enter" variant="primary" type="submit" isLoading={open.isPending} />
-                        <Button label="Generate a passphrase" variant="secondary" isLoading={generate.isPending} onClick={() => generate.mutate()} />
+                        <Button label="Enter with passphrase" variant="primary" type="submit" isLoading={open.isPending} />
+                        <Button label="Generate random passphrase" variant="secondary" isLoading={generate.isPending} onClick={() => generate.mutate()} />
                       </Stack>
                     </Stack>
                   </form>
-                  <Text type="supporting">Anyone with this passphrase can read and write. Use the generated option for private content.</Text>
+                  <Text type="supporting">Anyone with this passphrase can read and edit. For sensitive content, use &quot;Generate random passphrase&quot; to ensure privacy.</Text>
                   <ErrorNotice error={open.error ?? generate.error} />
                 </Stack>
               </Card>
@@ -222,7 +222,11 @@ export function ClipboardPage() {
                     <Card>
                       <Stack gap={2}>
                         <Heading level={2}>Shared content</Heading>
-                        <MarkdownContent content={read.data.content} />
+                        {read.data.content ? (
+                          <MarkdownContent content={read.data.content} />
+                        ) : (
+                          <Text type="supporting">No content yet. Add the first update below or let your agent append to it.</Text>
+                        )}
                       </Stack>
                     </Card>
                     <Card>

@@ -33,7 +33,7 @@ function DocumentForm({ onSave, pending, error, label }: {
     // of silently ignoring the submit (TextInput cannot carry the old native
     // pattern/required constraints).
     if (!trimmed) {
-      setTitleError('Enter a title before saving — spaces alone don’t count.');
+      setTitleError('Please enter a valid title (cannot be empty or whitespace only).');
       return;
     }
     setTitleError(null);
@@ -81,7 +81,7 @@ export function ContextListPage() {
             </Stack>
             {auth.data?.user && <Button label="New Context" variant="primary" href="/contexts/new" />}
           </Stack>
-          <Text type="body">A Context holds the overall background; Threads organize the specific topics inside it.</Text>
+          <Text type="body">Contexts store shared project background. Use Threads inside them to collaborate on specific tasks or discussions with your agents.</Text>
           <ErrorNotice error={auth.error ?? (auth.data?.user ? query.error : null)} />
           {auth.isPending && <LoadingList />}
           {!auth.isPending && !auth.error && !auth.data?.user && <SignedOutNotice />}

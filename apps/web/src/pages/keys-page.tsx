@@ -101,7 +101,7 @@ function KeyForm({ pending }: { pending: boolean }) {
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!name.trim()) {
-      setNameError('Give the key a name before creating it.');
+      setNameError('Please enter a key name before creating.');
       return;
     }
     setNameError(null);
@@ -118,7 +118,7 @@ function KeyForm({ pending }: { pending: boolean }) {
             // maxLength did; TextInput cannot carry the attribute itself.
             onChange={value => { setName(value.slice(0, 100)); setNameError(null); }}
             isRequired
-            placeholder="e.g. My CLI"
+            placeholder="e.g. Claude Desktop, Cursor, CLI"
             isDisabled={pending}
             {...(nameError ? { status: { type: 'error' as const, message: nameError } } : {})}
           />
@@ -188,7 +188,7 @@ export function KeysPage() {
                   <Card key={key.id} variant="muted">
                     <Stack gap={1}>
                       <Heading level={2}>{key.name}</Heading>
-                      <Text type="supporting">Revoked on {formatDateTime(key.revokedAt!)} · requests with this key are rejected</Text>
+                      <Text type="supporting">Revoked on {formatDateTime(key.revokedAt!)} · future API requests will be rejected</Text>
                     </Stack>
                   </Card>
                 ))}

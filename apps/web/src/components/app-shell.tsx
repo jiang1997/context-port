@@ -20,7 +20,7 @@ export function AppShellLayout({ children }: PropsWithChildren) {
         >
           <TopNavItem href="/" label="Temporary Context" isSelected={path === '/'} />
           <TopNavItem href="/contexts" label="My Contexts" isSelected={path.startsWith('/contexts')} />
-          <TopNavItem href="/keys" label="MCP Keys" isSelected={path.startsWith('/keys')} />
+          <TopNavItem href="/keys" label="API Keys" isSelected={path.startsWith('/keys')} />
         </TopNav>
       }
     >
