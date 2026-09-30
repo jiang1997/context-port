@@ -46,12 +46,40 @@ export function buildClipboardAgentInstructions(passphrase: string, apiBase: str
   ].join('\n');
 }
 
+export function buildClipboardAgentGuide(apiBase: string): string {
+  return [
+    'Temporary Context lets any person or agent share short-lived text without login. It expires 24 hours after creation.',
+    '',
+    `API base: ${apiBase}`,
+    '',
+    '1. Create a new Context (server generates a random passphrase):',
+    `curl -s -X POST "${apiBase}/clipboard/generate"`,
+    '→ returns JSON { passphrase, content, version, expiresAt }. Save the passphrase — it is the only credential.',
+    '',
+    'Or create / enter with your own passphrase (12-128 characters):',
+    `curl -s -X POST "${apiBase}/clipboard/open" -H "Content-Type: application/json" -d '{"passphrase":"YOUR PASSPHRASE"}'`,
+    '',
+    '2. Read the current content:',
+    `curl -s -X POST "${apiBase}/clipboard/read" -H "Content-Type: application/json" -d '{"passphrase":"YOUR PASSPHRASE"}'`,
+    '',
+    '3. Append / modify (appends Markdown, 1-20000 chars per call, 100000 chars max total):',
+    `curl -s -X POST "${apiBase}/clipboard/append" -H "Content-Type: application/json" -d '{"passphrase":"YOUR PASSPHRASE","content":"YOUR TEXT HERE"}'`,
+    '',
+    'Rules for agent:',
+    '- No login needed; the passphrase is the credential. Keep it secret.',
+    '- `read` returns JSON { content, version, expiresAt }.',
+    '- `append` concatenates with a blank-line separator. There is no delete/edit API; to "modify", read first then append the correction.',
+    '- Rate limit is 60 requests/min per IP.',
+  ].join('\n');
+}
+
 export function ClipboardPage() {
   const [entry, setEntry] = useState('');
   const [passphrase, setPassphrase] = useState('');
   const [addition, setAddition] = useState('');
   const [copied, setCopied] = useState(false);
   const [copiedForAgent, setCopiedForAgent] = useState(false);
+  const [copiedGuide, setCopiedGuide] = useState(false);
   const read = useQuery({
     queryKey: ['clipboard', passphrase],
     queryFn: () => apiRequest<Clipboard>('/clipboard/read', { method: 'POST', body: JSON.stringify({ passphrase }) }),
@@ -89,6 +117,10 @@ export function ClipboardPage() {
     const ok = await copyTextToClipboard(instructions);
     if (ok) setCopiedForAgent(true);
   }
+  async function copyAgentGuide() {
+    const ok = await copyTextToClipboard(buildClipboardAgentGuide(resolveClipboardApiBase()));
+    if (ok) setCopiedGuide(true);
+  }
   return <div className="page page-narrow">
     <span className="eyebrow">No account needed</span>
     <h1>Temporary Context</h1>
@@ -124,5 +156,18 @@ export function ClipboardPage() {
         </form>
       </>}
     </>}
+    <section className="panel clipboard-compose">
+      <h2>Use with an agent</h2>
+      <p className="panel-hint">No login needed — an agent can create, read and append via curl using only the passphrase. Copy the guide below and paste it to your agent.</p>
+      <ol className="panel-hint">
+        <li>Create: <code className="context-id-code">POST /clipboard/generate</code> (random passphrase) or <code className="context-id-code">POST /clipboard/open</code> (your own 12–128 char passphrase).</li>
+        <li>Read: <code className="context-id-code">POST /clipboard/read</code> with <code className="context-id-code">{'{ "passphrase" }'}</code>.</li>
+        <li>Append: <code className="context-id-code">POST /clipboard/append</code> with <code className="context-id-code">{'{ "passphrase", "content" }'}</code>.</li>
+      </ol>
+      <div className="form-actions">
+        <button className="button button-secondary button-small" onClick={() => void copyAgentGuide()}>{copiedGuide ? 'Copied' : 'Copy agent guide'}</button>
+        <span role="status" aria-live="polite" className="copy-id-feedback">{copiedGuide ? 'Agent guide with curl commands copied.' : ''}</span>
+      </div>
+    </section>
   </div>;
 }
