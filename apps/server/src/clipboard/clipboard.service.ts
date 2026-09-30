@@ -6,7 +6,7 @@ import { PassphraseSchema } from '@contextport/contracts';
 import { DATABASE } from '../db/db.module.js';
 import { getEnvironment } from '../config/environment.js';
 
-const TTL_MS = 24 * 60 * 60 * 1000;
+const TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CONTENT = 100_000;
 
 @Injectable()

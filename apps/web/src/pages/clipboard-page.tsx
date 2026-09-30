@@ -48,7 +48,7 @@ export function buildClipboardAgentInstructions(passphrase: string, apiBase: str
 
 export function buildClipboardAgentGuide(apiBase: string): string {
   return [
-    'Temporary Context lets any person or agent share short-lived text without login. It expires 24 hours after creation.',
+    'Temporary Context lets any person or agent share short-lived text without login. It expires 7 days after creation.',
     '',
     `API base: ${apiBase}`,
     '',
@@ -124,7 +124,7 @@ export function ClipboardPage() {
   return <div className="page page-narrow">
     <span className="eyebrow">No account needed</span>
     <h1>Temporary Context</h1>
-    <p>Share a passphrase with another person or Agent to read and add to the same Context. It expires 24 hours after creation.</p>
+    <p>Share a passphrase with another person or Agent to read and add to the same Context. It expires 7 days after creation.</p>
     <section className="panel clipboard-access">
       <h2>Use with an agent</h2>
       <p className="panel-hint">No login needed — copy the guide and paste it to your agent.</p>
