@@ -29,7 +29,7 @@ export function useAuthSession() {
 
 export function LoginButton() {
   const location = useLocation();
-  return <Button label="Sign in with Google" variant="primary" size="sm" href={googleLoginUrl(location.pathname)} />;
+  return <Button label="Sign in" variant="primary" size="sm" href={googleLoginUrl(location.pathname)} />;
 }
 
 export function AuthStatus() {

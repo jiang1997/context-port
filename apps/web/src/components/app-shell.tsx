@@ -10,7 +10,7 @@ export function AppShellLayout({ children }: PropsWithChildren) {
   return (
     <AstryxAppShell
       height="auto"
-      contentPadding={0}
+      contentPadding={4}
       topNav={
         <TopNav
           label="Main navigation"
@@ -18,7 +18,7 @@ export function AppShellLayout({ children }: PropsWithChildren) {
           endContent={<AuthStatus />}
         >
           <TopNavItem href="/" label="Temporary Context" isSelected={path === '/'} />
-          <TopNavItem href="/contexts" label="Contexts" isSelected={path.startsWith('/contexts')} />
+          <TopNavItem href="/contexts" label="My Contexts" isSelected={path.startsWith('/contexts')} />
           <TopNavItem href="/keys" label="MCP Keys" isSelected={path.startsWith('/keys')} />
         </TopNav>
       }

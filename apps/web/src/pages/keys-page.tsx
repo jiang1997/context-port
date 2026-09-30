@@ -53,7 +53,7 @@ function CopyButton({ value }: { value: string }) {
 
 function CommandRow({ command }: { command: string }) {
   return (
-    <Stack direction="horizontal" gap={2} vAlign="start">
+    <Stack direction="horizontal" gap={2} vAlign="start" wrap="wrap">
       <Text type="code" style={codeRowStyle}>{command}</Text>
       <CopyButton value={command} />
     </Stack>
@@ -154,15 +154,13 @@ export function KeysPage() {
     <Layout
       height="auto"
       contentWidth={1120}
-      header={
-        <Stack gap={2}>
-          <Text type="label">Connect agents</Text>
-          <Heading level={1}>API Keys</Heading>
-          <Text type="body">Use a key with an MCP client or let an Agent call the REST API with curl. Each key can read and write only your own Contexts.</Text>
-        </Stack>
-      }
       content={
         <Stack gap={4}>
+          <Stack gap={2}>
+            <Text type="label">Connect agents</Text>
+            <Heading level={1}>API Keys</Heading>
+            <Text type="body">Use a key with an MCP client or let an Agent call the REST API with curl. Each key can read and write only your own Contexts.</Text>
+          </Stack>
           {auth.isPending && <LoadingList rows={2} />}
           {!auth.isPending && !auth.data?.user && <SignedOutNotice />}
           {auth.data?.user && (

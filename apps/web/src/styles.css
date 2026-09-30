@@ -7,6 +7,51 @@ body {
   font-family: var(--font-family-body, Inter, ui-sans-serif, system-ui, sans-serif);
 }
 
+#astryx-app-shell-main {
+  padding-inline: var(--spacing-4, 16px) !important;
+  padding-block: var(--spacing-6, 24px) !important;
+  box-sizing: border-box;
+}
+
+#astryx-app-shell-main > .astryx-layout {
+  margin-inline: 0 !important;
+  min-width: 0;
+  width: 100%;
+}
+
+.astryx-layout,
+.astryx-layout * {
+  box-sizing: border-box;
+}
+
+.astryx-card,
+.astryx-stack,
+form {
+  max-width: 100%;
+}
+
+.astryx-stack[data-direction="horizontal"] {
+  width: 100%;
+}
+
+@media (max-width: 600px) {
+  .astryx-top-nav-heading > span > span:nth-child(2) {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  form .astryx-stack[data-direction="horizontal"] > .astryx-button {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+}
+
+code, .astryx-code {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
 /* Context detail: Threads rail beside the New Thread form. Astryx Layout
    keeps start/content on one unwrapped row, so the responsive collapse lives
    here as an app-level tweak. */

@@ -72,17 +72,15 @@ export function ContextListPage() {
     <Layout
       height="auto"
       contentWidth={1120}
-      header={
-        <Stack direction="horizontal" gap={4} vAlign="end" justify="between">
-          <Stack gap={2}>
-            <Text type="label">A shared knowledge space</Text>
-            <Heading level={1}>My Contexts</Heading>
-          </Stack>
-          {auth.data?.user && <Button label="New Context" variant="primary" href="/contexts/new" />}
-        </Stack>
-      }
       content={
         <Stack gap={4}>
+          <Stack direction="horizontal" gap={4} vAlign="end" justify="between" wrap="wrap">
+            <Stack gap={2}>
+              <Text type="label">A shared knowledge space</Text>
+              <Heading level={1}>My Contexts</Heading>
+            </Stack>
+            {auth.data?.user && <Button label="New Context" variant="primary" href="/contexts/new" />}
+          </Stack>
           <Text type="body">A Context holds the overall background; Threads organize the specific topics inside it.</Text>
           <ErrorNotice error={auth.error ?? (auth.data?.user ? query.error : null)} />
           {auth.isPending && <LoadingList />}
@@ -102,7 +100,7 @@ export function ContextListPage() {
                   <Link href={`/contexts/${item.id}`} isStandalone>
                     <Heading level={2}>{item.title}</Heading>
                   </Link>
-                  <Stack direction="horizontal" gap={2} vAlign="center">
+                  <Stack direction="horizontal" gap={2} vAlign="center" wrap="wrap">
                     <Badge variant={item.createdByType === 'agent' ? 'info' : 'neutral'} label={item.createdByType === 'agent' ? 'Agent' : 'Human'} />
                     <Text type="supporting">
                       {item.createdBy ?? 'Anonymous'} · updated <RelativeTime value={item.updatedAt} />
@@ -113,10 +111,12 @@ export function ContextListPage() {
               </Card>
             ))}
           </Stack>
-          <Stack direction="horizontal" gap={3}>
-            <Button label="Previous" variant="secondary" isDisabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 20))} />
-            <Button label="Next" variant="secondary" isDisabled={!contexts || contexts.length < 20} onClick={() => setOffset(offset + 20)} />
-          </Stack>
+          {auth.data?.user && contexts && (contexts.length > 0 || offset > 0) && (
+            <Stack direction="horizontal" gap={3}>
+              <Button label="Previous" variant="secondary" isDisabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 20))} />
+              <Button label="Next" variant="secondary" isDisabled={!contexts || contexts.length < 20} onClick={() => setOffset(offset + 20)} />
+            </Stack>
+          )}
         </Stack>
       }
     />
@@ -133,14 +133,17 @@ export function ContextCreatePage() {
     <Layout
       height="auto"
       contentWidth={720}
-      header={
-        <Stack gap={2}>
-          <Text type="label">A new shared document</Text>
-          <Heading level={1}>New Context</Heading>
-          <Text type="body">Record the goal, the background, and the current shared understanding.</Text>
+      content={
+        <Stack gap={4}>
+          <Link href="/contexts">← My Contexts</Link>
+          <Stack gap={2}>
+            <Text type="label">A new shared document</Text>
+            <Heading level={1}>New Context</Heading>
+            <Text type="body">Record the goal, the background, and the current shared understanding.</Text>
+          </Stack>
+          <DocumentForm onSave={data => mutation.mutate(data)} pending={mutation.isPending} error={mutation.error} label="Create Context" />
         </Stack>
       }
-      content={<DocumentForm onSave={data => mutation.mutate(data)} pending={mutation.isPending} error={mutation.error} label="Create Context" />}
     />
   );
 }

@@ -153,23 +153,22 @@ export function ClipboardPage() {
     <Layout
       height="auto"
       contentWidth={720}
-      header={
-        <Stack gap={2}>
-          <Text type="label">No account needed</Text>
-          <Heading level={1}>Temporary Context</Heading>
-          <Text type="body">Share a passphrase with another person or Agent to read and add to the same Context. It expires 7 days after creation.</Text>
-        </Stack>
-      }
       content={
         <Stack gap={4}>
+          <Stack gap={2}>
+            <Text type="label">No account needed</Text>
+            <Heading level={1}>Temporary Context</Heading>
+            <Text type="body">Share a passphrase with another person or Agent to read and add to the same Context. It expires 7 days after creation.</Text>
+          </Stack>
           <Card>
             <Stack gap={3}>
               <Heading level={2}>Use with an agent</Heading>
               <Text type="supporting">No login needed — copy the guide and paste it to your agent.</Text>
               <List listStyle="decimal">
-                <ListItem label={<Text type="body">Create: <Code>POST /clipboard/generate</Code> (random passphrase) or <Code>POST /clipboard/open</Code> (your own 12–128 char passphrase).</Text>} />
-                <ListItem label={<Text type="body">Read: <Code>POST /clipboard/read</Code> with <Code>{'{ "passphrase" }'}</Code>.</Text>} />
-                <ListItem label={<Text type="body">Append: <Code>POST /clipboard/append</Code> with <Code>{'{ "passphrase", "content" }'}</Code>.</Text>} />
+                <ListItem label={<Text type="body">Generate: <Code>POST /clipboard/generate</Code></Text>} />
+                <ListItem label={<Text type="body">Open: <Code>POST /clipboard/open</Code></Text>} />
+                <ListItem label={<Text type="body">Read: <Code>POST /clipboard/read</Code></Text>} />
+                <ListItem label={<Text type="body">Append: <Code>POST /clipboard/append</Code></Text>} />
               </List>
               <div>
                 <Button label={copiedGuide ? 'Copied' : 'Copy agent guide'} variant="secondary" size="sm" onClick={() => void copyAgentGuide()} />
