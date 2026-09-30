@@ -7,6 +7,7 @@ import { Code } from '@astryxdesign/core/Code';
 import { Layout } from '@astryxdesign/core/Layout';
 import { List, ListItem } from '@astryxdesign/core/List';
 import { Stack } from '@astryxdesign/core/Stack';
+import { Tab, TabList } from '@astryxdesign/core/TabList';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { TextArea } from '@astryxdesign/core/TextArea';
 import { TextInput } from '@astryxdesign/core/TextInput';
@@ -90,6 +91,7 @@ export function ClipboardPage() {
   const [copied, setCopied] = useState(false);
   const [copiedForAgent, setCopiedForAgent] = useState(false);
   const [copiedGuide, setCopiedGuide] = useState(false);
+  const [activeTab, setActiveTab] = useState<'agent' | 'human'>('agent');
   const read = useQuery({
     queryKey: ['clipboard', passphrase],
     queryFn: () => apiRequest<Clipboard>('/clipboard/read', { method: 'POST', body: JSON.stringify({ passphrase }) }),
@@ -160,100 +162,136 @@ export function ClipboardPage() {
             <Heading level={1}>Temporary Context</Heading>
             <Text type="body">Share a passphrase with another person or Agent to read and add to the same Context. It expires 7 days after creation.</Text>
           </Stack>
-          <Card>
-            <Stack gap={3}>
-              <Heading level={2}>Use with an agent</Heading>
-              <Text type="supporting">No login needed — copy the guide and paste it to your agent.</Text>
-              <List listStyle="decimal">
-                <ListItem label={<Text type="body">Generate: <Code>POST /clipboard/generate</Code></Text>} />
-                <ListItem label={<Text type="body">Open: <Code>POST /clipboard/open</Code></Text>} />
-                <ListItem label={<Text type="body">Read: <Code>POST /clipboard/read</Code></Text>} />
-                <ListItem label={<Text type="body">Append: <Code>POST /clipboard/append</Code></Text>} />
-              </List>
-              <div>
-                <Button label={copiedGuide ? 'Copied' : 'Copy agent guide'} variant="secondary" size="sm" onClick={() => void copyAgentGuide()} />
-              </div>
-            </Stack>
-          </Card>
-          {!passphrase ? (
-            <Card>
-              <Stack gap={3}>
-                <Heading level={2}>Open a Context</Heading>
-                <form onSubmit={submitEntry}>
-                  <Stack gap={3}>
-                    <TextInput
-                      label="Passphrase"
-                      value={entry}
-                      onChange={value => { setEntry(value); setEntryError(null); }}
-                      isRequired
-                      placeholder="At least 12 characters"
-                      autoComplete="off"
-                      {...(entryError ? { status: { type: 'error' as const, message: entryError } } : {})}
-                    />
-                    <Stack direction="horizontal" gap={3} wrap="wrap">
-                      <Button label="Create or enter" variant="primary" type="submit" isLoading={open.isPending} />
-                      <Button label="Generate a passphrase" variant="secondary" isLoading={generate.isPending} onClick={() => generate.mutate()} />
-                    </Stack>
-                  </Stack>
-                </form>
-                <Text type="supporting">Anyone with this passphrase can read and write. Use the generated option for private content.</Text>
-                <ErrorNotice error={open.error ?? generate.error} />
-              </Stack>
-            </Card>
-          ) : (
-            <>
+          <TabList value={activeTab} onChange={val => setActiveTab(val as 'agent' | 'human')} hasDivider role="tablist">
+            <Tab value="agent" label="For Agents" />
+            <Tab value="human" label="For Humans" />
+          </TabList>
+
+          {activeTab === 'human' ? (
+            !passphrase ? (
               <Card>
                 <Stack gap={3}>
-                  <Heading level={2}>Share this passphrase</Heading>
-                  <Stack direction="horizontal" gap={2} vAlign="center" wrap="wrap">
-                    <Text type="code">{passphrase}</Text>
-                    <Button label={copied ? 'Copied' : 'Copy'} variant="secondary" size="sm" onClick={() => void copyPassphrase()} />
-                    <Button label={copiedForAgent ? 'Copied for agent' : 'Copy for agent'} variant="secondary" size="sm" onClick={() => void copyForAgent()} tooltip="Copy curl instructions for read + append" />
+                  <Heading level={2}>Open a Context</Heading>
+                  <form onSubmit={submitEntry}>
+                    <Stack gap={3}>
+                      <TextInput
+                        label="Passphrase"
+                        value={entry}
+                        onChange={value => { setEntry(value); setEntryError(null); }}
+                        isRequired
+                        placeholder="At least 12 characters"
+                        autoComplete="off"
+                        {...(entryError ? { status: { type: 'error' as const, message: entryError } } : {})}
+                      />
+                      <Stack direction="horizontal" gap={3} wrap="wrap">
+                        <Button label="Create or enter" variant="primary" type="submit" isLoading={open.isPending} />
+                        <Button label="Generate a passphrase" variant="secondary" isLoading={generate.isPending} onClick={() => generate.mutate()} />
+                      </Stack>
+                    </Stack>
+                  </form>
+                  <Text type="supporting">Anyone with this passphrase can read and write. Use the generated option for private content.</Text>
+                  <ErrorNotice error={open.error ?? generate.error} />
+                </Stack>
+              </Card>
+            ) : (
+              <>
+                <Card>
+                  <Stack gap={3}>
+                    <Heading level={2}>Share this passphrase</Heading>
+                    <Stack direction="horizontal" gap={2} vAlign="center" wrap="wrap">
+                      <Text type="code">{passphrase}</Text>
+                      <Button label={copied ? 'Copied' : 'Copy'} variant="secondary" size="sm" onClick={() => void copyPassphrase()} />
+                      <Button label={copiedForAgent ? 'Copied for agent' : 'Copy for agent'} variant="secondary" size="sm" onClick={() => void copyForAgent()} tooltip="Copy curl instructions for read + append" />
+                    </Stack>
+                    <Text type="supporting">The passphrase is your only way back. Keep it somewhere safe until this Context expires.</Text>
+                    <div>
+                      <Button
+                        label="Leave Context"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setPassphrase(''); setEntry(''); setAddition(''); setCopied(false); setCopiedForAgent(false); }}
+                      />
+                    </div>
                   </Stack>
-                  <Text type="supporting">The passphrase is your only way back. Keep it somewhere safe until this Context expires.</Text>
+                </Card>
+                <ErrorNotice error={read.error} />
+                {read.isPending && <Skeleton lines={4} />}
+                {read.data && !read.error && (
+                  <>
+                    <Text type="supporting">Expires {new Date(read.data.expiresAt).toLocaleString()} · version {read.data.version}</Text>
+                    <Card>
+                      <Stack gap={2}>
+                        <Heading level={2}>Shared content</Heading>
+                        <MarkdownContent content={read.data.content} />
+                      </Stack>
+                    </Card>
+                    <Card>
+                      <form onSubmit={submitAddition}>
+                        <Stack gap={3}>
+                          <TextArea
+                            label="Add to Context"
+                            value={addition}
+                            onChange={value => { setAddition(value); setAdditionError(null); }}
+                            isRequired
+                            maxLength={20_000}
+                            rows={7}
+                            {...(additionError ? { status: { type: 'error' as const, message: additionError } } : {})}
+                          />
+                          <ErrorNotice error={append.error} />
+                          <div>
+                            <Button label={append.isPending ? 'Adding…' : 'Add content'} variant="primary" type="submit" isLoading={append.isPending} />
+                          </div>
+                        </Stack>
+                      </form>
+                    </Card>
+                  </>
+                )}
+              </>
+            )
+          ) : (
+            <Stack gap={4}>
+              {passphrase ? (
+                <Card>
+                  <Stack gap={3}>
+                    <Heading level={2}>Instructions for this Context</Heading>
+                    <Text type="supporting">
+                      Your active passphrase is <Code>{passphrase}</Code>. Give these instructions to your agent so it can read and update this specific Context.
+                    </Text>
+                    <Stack direction="horizontal" gap={2} vAlign="center" wrap="wrap">
+                      <Button
+                        label={copiedForAgent ? 'Copied instructions' : 'Copy agent instructions'}
+                        variant="primary"
+                        size="sm"
+                        onClick={() => void copyForAgent()}
+                      />
+                      <Button
+                        label={copied ? 'Copied passphrase' : 'Copy passphrase'}
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => void copyPassphrase()}
+                      />
+                    </Stack>
+                  </Stack>
+                </Card>
+              ) : null}
+              <Card>
+                <Stack gap={3}>
+                  <Heading level={2}>Agent API Guide</Heading>
+                  <Text type="supporting">
+                    No login needed — copy the guide and paste it to your agent so it can create or join temporary workspaces via curl.
+                  </Text>
+                  <List listStyle="decimal">
+                    <ListItem label={<Text type="body">Generate: <Code>POST /clipboard/generate</Code></Text>} />
+                    <ListItem label={<Text type="body">Open: <Code>POST /clipboard/open</Code></Text>} />
+                    <ListItem label={<Text type="body">Read: <Code>POST /clipboard/read</Code></Text>} />
+                    <ListItem label={<Text type="body">Append: <Code>POST /clipboard/append</Code></Text>} />
+                  </List>
                   <div>
-                    <Button
-                      label="Leave Context"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => { setPassphrase(''); setEntry(''); setAddition(''); setCopied(false); setCopiedForAgent(false); }}
-                    />
+                    <Button label={copiedGuide ? 'Copied' : 'Copy agent guide'} variant="secondary" size="sm" onClick={() => void copyAgentGuide()} />
                   </div>
                 </Stack>
               </Card>
-              <ErrorNotice error={read.error} />
-              {read.isPending && <Skeleton lines={4} />}
-              {read.data && !read.error && (
-                <>
-                  <Text type="supporting">Expires {new Date(read.data.expiresAt).toLocaleString()} · version {read.data.version}</Text>
-                  <Card>
-                    <Stack gap={2}>
-                      <Heading level={2}>Shared content</Heading>
-                      <MarkdownContent content={read.data.content} />
-                    </Stack>
-                  </Card>
-                  <Card>
-                    <form onSubmit={submitAddition}>
-                      <Stack gap={3}>
-                        <TextArea
-                          label="Add to Context"
-                          value={addition}
-                          onChange={value => { setAddition(value); setAdditionError(null); }}
-                          isRequired
-                          maxLength={20_000}
-                          rows={7}
-                          {...(additionError ? { status: { type: 'error' as const, message: additionError } } : {})}
-                        />
-                        <ErrorNotice error={append.error} />
-                        <div>
-                          <Button label={append.isPending ? 'Adding…' : 'Add content'} variant="primary" type="submit" isLoading={append.isPending} />
-                        </div>
-                      </Stack>
-                    </form>
-                  </Card>
-                </>
-              )}
-            </>
+            </Stack>
           )}
         </Stack>
       }
