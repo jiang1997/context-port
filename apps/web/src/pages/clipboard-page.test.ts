@@ -18,6 +18,7 @@ describe('Temporary Context Agent Instructions & Guide', () => {
     const guide = buildClipboardAgentGuide(apiBase);
     expect(guide).toContain('Temporary Context lets any person or agent share short-lived text without login.');
     expect(guide).toContain('curl -s -X POST "https://api.example.com/api/v1/temporary-contexts/generate"');
+    expect(guide).toContain('Or create / enter with your own passphrase (8-128 characters):');
     expect(guide).toContain('curl -s -X POST "https://api.example.com/api/v1/temporary-contexts/open"');
     expect(guide).toContain('curl -s -X POST "https://api.example.com/api/v1/temporary-contexts/read"');
     expect(guide).toContain('curl -s -X POST "https://api.example.com/api/v1/temporary-contexts/append"');

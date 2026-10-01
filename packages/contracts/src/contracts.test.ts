@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CreateContextSchema, CreateThreadSchema, ListContextsSchema, UpdateContextSchema } from './index.js';
+import { CreateContextSchema, CreateThreadSchema, ListContextsSchema, PassphraseSchema, UpdateContextSchema } from './index.js';
 describe('MVP document contracts', () => {
   it('accepts human and agent documents and preserves Markdown whitespace', () => {
     for (const createdByType of ['human', 'agent']) {
@@ -22,5 +22,12 @@ describe('MVP document contracts', () => {
     expect(UpdateContextSchema.safeParse({ ...base, expectedVersion: 0 }).success).toBe(false);
     expect(UpdateContextSchema.parse({ ...base, title: 'New' })).toMatchObject({ title: 'New', expectedVersion: 1 });
     expect(UpdateContextSchema.safeParse({ ...base, title: 'New', version: 2 }).success).toBe(false);
+  });
+  it('validates temporary context passphrases (8-128 chars)', () => {
+    expect(PassphraseSchema.safeParse('1234567').success).toBe(false);
+    expect(PassphraseSchema.safeParse('12345678').success).toBe(true);
+    expect(PassphraseSchema.safeParse('a'.repeat(8)).success).toBe(true);
+    expect(PassphraseSchema.safeParse('a'.repeat(128)).success).toBe(true);
+    expect(PassphraseSchema.safeParse('a'.repeat(129)).success).toBe(false);
   });
 });

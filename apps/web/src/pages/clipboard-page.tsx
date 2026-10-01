@@ -65,7 +65,7 @@ export function buildClipboardAgentGuide(apiBase: string): string {
     `curl -s -X POST "${apiBase}/temporary-contexts/generate"`,
     '→ returns JSON { passphrase, content, version, expiresAt }. Save the passphrase — it is the only credential.',
     '',
-    'Or create / enter with your own passphrase (12-128 characters):',
+    'Or create / enter with your own passphrase (8-128 characters):',
     `curl -s -X POST "${apiBase}/temporary-contexts/open" -H "Content-Type: application/json" -d '{"passphrase":"YOUR PASSPHRASE"}'`,
     '',
     '2. Read the current content:',
@@ -116,10 +116,10 @@ export function ClipboardPage() {
     event.preventDefault();
     // TextInput cannot carry the native minLength/maxLength constraints
     // (the Astryx component maps isRequired to aria-required only), so the
-    // 12–128 char contract is enforced here with visible feedback instead
+    // 8–128 char contract is enforced here with visible feedback instead
     // of silently ignoring the submit.
-    if (entry.length < 12) {
-      setEntryError('Passphrase must be at least 12 characters.');
+    if (entry.length < 8) {
+      setEntryError('Passphrase must be at least 8 characters.');
       return;
     }
     if (entry.length > 128) {
@@ -178,7 +178,7 @@ export function ClipboardPage() {
                         value={entry}
                         onChange={value => { setEntry(value); setEntryError(null); }}
                         isRequired
-                        placeholder="At least 12 characters"
+                        placeholder="At least 8 characters"
                         autoComplete="off"
                         {...(entryError ? { status: { type: 'error' as const, message: entryError } } : {})}
                       />
