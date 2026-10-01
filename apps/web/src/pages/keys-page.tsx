@@ -157,7 +157,6 @@ export function KeysPage() {
       content={
         <Stack gap={4}>
           <Stack gap={2}>
-            <Text type="label">Connect agents</Text>
             <Heading level={1}>API Keys</Heading>
             <Text type="body">Use a key with an MCP client or let an Agent call the REST API with curl. Each key can read and write only your own Contexts.</Text>
           </Stack>

@@ -158,7 +158,6 @@ export function ClipboardPage() {
       content={
         <Stack gap={4}>
           <Stack gap={2}>
-            <Text type="label">No account needed</Text>
             <Heading level={1}>Temporary Context</Heading>
             <Text type="body">A temporary, login-free workspace to share task context with people or AI agents. Automatically expires in 7 days.</Text>
           </Stack>

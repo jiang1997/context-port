@@ -74,14 +74,13 @@ export function ContextListPage() {
       contentWidth={1120}
       content={
         <Stack gap={4}>
-          <Stack direction="horizontal" gap={4} vAlign="end" justify="between" wrap="wrap">
-            <Stack gap={2}>
-              <Text type="label">A shared knowledge space</Text>
+          <Stack gap={2}>
+            <Stack direction="horizontal" gap={4} vAlign="center" justify="between" wrap="wrap">
               <Heading level={1}>My Contexts</Heading>
+              {auth.data?.user && <Button label="New Context" variant="primary" href="/contexts/new" />}
             </Stack>
-            {auth.data?.user && <Button label="New Context" variant="primary" href="/contexts/new" />}
+            <Text type="body">Contexts store shared project background. Use Threads inside them to collaborate on specific tasks or discussions with your agents.</Text>
           </Stack>
-          <Text type="body">Contexts store shared project background. Use Threads inside them to collaborate on specific tasks or discussions with your agents.</Text>
           <ErrorNotice error={auth.error ?? (auth.data?.user ? query.error : null)} />
           {auth.isPending && <LoadingList />}
           {!auth.isPending && !auth.error && !auth.data?.user && <SignedOutNotice />}
@@ -137,7 +136,6 @@ export function ContextCreatePage() {
         <Stack gap={4}>
           <Link href="/contexts">← My Contexts</Link>
           <Stack gap={2}>
-            <Text type="label">A new shared document</Text>
             <Heading level={1}>New Context</Heading>
             <Text type="body">Record the goal, the background, and the current shared understanding.</Text>
           </Stack>
@@ -223,7 +221,6 @@ export function ThreadDetailPage() {
           {query.data && (
             <>
               <Stack gap={2}>
-                <Text type="label">Thread</Text>
                 <Heading level={1}>{query.data.title}</Heading>
                 <Text type="supporting">{query.data.createdBy ?? query.data.createdByType} · v{query.data.version}</Text>
               </Stack>
