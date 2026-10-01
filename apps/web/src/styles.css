@@ -34,12 +34,6 @@ form {
   width: 100%;
 }
 
-@media (max-width: 600px) {
-  .astryx-top-nav-heading > span > span:nth-child(2) {
-    display: none;
-  }
-}
-
 @media (max-width: 480px) {
   form .astryx-stack[data-direction="horizontal"] > .astryx-button {
     flex: 1 1 100%;

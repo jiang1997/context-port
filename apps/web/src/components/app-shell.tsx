@@ -15,7 +15,7 @@ export function AppShellLayout({ children }: PropsWithChildren) {
       topNav={
         <TopNav
           label="Main navigation"
-          heading={<TopNavHeading heading="ContextPort" headingHref="/" subheading="Human ↔ Agent workspace" />}
+          heading={<TopNavHeading heading="ContextPort" headingHref="/" />}
           endContent={<AuthStatus />}
         >
           <TopNavItem href="/" label="Temporary Context" isSelected={path === '/'} />
