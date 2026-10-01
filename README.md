@@ -80,3 +80,7 @@ TEST_DATABASE_URL=postgresql://user:password@localhost:5432/contextport_test pnp
 Migrations preserve legacy experimental tables. SQL migrations are manually maintained;
 a complete Drizzle snapshot baseline for `db:generate` has not been established yet.
 See [note.md](note.md) for the product design and next milestones.
+
+## License
+
+[MIT](LICENSE) © 2026 jiang1997

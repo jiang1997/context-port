@@ -111,3 +111,7 @@ TEST_DATABASE_URL=postgresql://user:password@localhost:5432/contextport_test pnp
 不要直接依赖 `db:generate`（仓库尚未建立完整 Drizzle snapshot 基线）。
 
 后续设计和范围见 [note.md](note.md)。
+
+## 开源协议 (License)
+
+本项目采用 [MIT](LICENSE) 协议开源。
