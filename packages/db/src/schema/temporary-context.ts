@@ -12,3 +12,5 @@ export const clipboards = pgTable('clipboards', {
   check('clipboards_version_positive', sql`${table.version} > 0`),
   index('clipboards_expires_idx').on(table.expiresAt),
 ]);
+
+export const temporaryContexts = clipboards;

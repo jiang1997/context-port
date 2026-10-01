@@ -10,7 +10,7 @@ const TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CONTENT = 100_000;
 
 @Injectable()
-export class ClipboardService {
+export class TemporaryContextService {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
   private hash(passphrase: string) {
@@ -29,7 +29,7 @@ export class ClipboardService {
     const row = inserted[0] ?? (await this.db.select().from(clipboards).where(and(
       eq(clipboards.passphraseHash, hash), gt(clipboards.expiresAt, now.toISOString()),
     )))[0];
-    if (!row) throw new NotFoundException('Clipboard expired. Please try again.');
+    if (!row) throw new NotFoundException('Temporary Context expired. Please try again.');
     return this.publicRow(row, inserted.length > 0);
   }
 
@@ -43,7 +43,7 @@ export class ClipboardService {
     const [row] = await this.db.select().from(clipboards).where(and(
       eq(clipboards.passphraseHash, hash), gt(clipboards.expiresAt, new Date().toISOString()),
     ));
-    if (!row) throw new NotFoundException('Clipboard not found or expired.');
+    if (!row) throw new NotFoundException('Temporary Context not found or expired.');
     return this.publicRow(row);
   }
 
@@ -62,13 +62,22 @@ export class ClipboardService {
     )).returning();
     if (!row) {
       await this.read(passphrase);
-      throw new PayloadTooLargeException('Clipboard is full (100,000 characters).');
+      throw new PayloadTooLargeException('Temporary Context is full (100,000 characters).');
     }
     return this.publicRow(row);
   }
 
   private publicRow(row: typeof clipboards.$inferSelect, created?: boolean) {
-    return { content: row.content, version: row.version, createdAt: row.createdAt,
-      updatedAt: row.updatedAt, expiresAt: row.expiresAt, ...(created === undefined ? {} : { created }) };
+    return {
+      content: row.content,
+      version: row.version,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      expiresAt: row.expiresAt,
+      ...(created === undefined ? {} : { created }),
+    };
   }
 }
+
+// Backwards-compatible alias
+export { TemporaryContextService as ClipboardService };

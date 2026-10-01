@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import type { Clipboard } from '@contextport/contracts';
+import type { TemporaryContext } from '@contextport/contracts';
 import { Button } from '@astryxdesign/core/Button';
 import { Card } from '@astryxdesign/core/Card';
 import { Code } from '@astryxdesign/core/Code';
@@ -16,9 +16,9 @@ import { copyTextToClipboard } from '../components/copy-context-id';
 import { ErrorNotice, Skeleton } from '../components/feedback';
 import { MarkdownContent } from '../components/markdown-content';
 
-type GeneratedClipboard = Clipboard & { passphrase: string };
+type GeneratedTemporaryContext = TemporaryContext & { passphrase: string };
 
-function resolveClipboardApiBase(): string {
+function resolveTemporaryContextApiBase(): string {
   const configured = import.meta.env.VITE_API_BASE_URL as string | undefined;
   if (configured?.startsWith('http')) return configured.replace(/\/$/, '');
   const pathBase = configured && configured.startsWith('/') ? configured : '/api/v1';
@@ -32,7 +32,7 @@ function shellQuotedJson(payload: string): string {
   return `'${payload.replace(/'/g, `'\"'\"'`)}'`;
 }
 
-export function buildClipboardAgentInstructions(passphrase: string, apiBase: string, expiresAt?: string): string {
+export function buildTemporaryContextAgentInstructions(passphrase: string, apiBase: string, expiresAt?: string): string {
   const readPayload = shellQuotedJson(JSON.stringify({ passphrase }));
   const appendPayload = shellQuotedJson(JSON.stringify({ passphrase, content: 'YOUR TEXT HERE' }));
   return [
@@ -55,7 +55,7 @@ export function buildClipboardAgentInstructions(passphrase: string, apiBase: str
   ].join('\n');
 }
 
-export function buildClipboardAgentGuide(apiBase: string): string {
+export function buildTemporaryContextAgentGuide(apiBase: string): string {
   return [
     'Temporary Context lets any person or agent share short-lived text without login. It expires 7 days after creation.',
     '',
@@ -82,7 +82,11 @@ export function buildClipboardAgentGuide(apiBase: string): string {
   ].join('\n');
 }
 
-export function ClipboardPage() {
+// Backwards-compatible aliases
+export const buildClipboardAgentInstructions = buildTemporaryContextAgentInstructions;
+export const buildClipboardAgentGuide = buildTemporaryContextAgentGuide;
+
+export function TemporaryContextPage() {
   const [entry, setEntry] = useState('');
   const [entryError, setEntryError] = useState<string | null>(null);
   const [passphrase, setPassphrase] = useState('');
@@ -94,20 +98,20 @@ export function ClipboardPage() {
   const [activeTab, setActiveTab] = useState<'agent' | 'human'>('agent');
   const read = useQuery({
     queryKey: ['temporary-context', passphrase],
-    queryFn: () => apiRequest<Clipboard>('/temporary-contexts/read', { method: 'POST', body: JSON.stringify({ passphrase }) }),
+    queryFn: () => apiRequest<TemporaryContext>('/temporary-contexts/read', { method: 'POST', body: JSON.stringify({ passphrase }) }),
     enabled: Boolean(passphrase),
     refetchInterval: 5000,
   });
   const open = useMutation({
-    mutationFn: (value: string) => apiRequest<Clipboard>('/temporary-contexts/open', { method: 'POST', body: JSON.stringify({ passphrase: value }) }),
+    mutationFn: (value: string) => apiRequest<TemporaryContext>('/temporary-contexts/open', { method: 'POST', body: JSON.stringify({ passphrase: value }) }),
     onSuccess: (_data, value) => { setPassphrase(value); setCopied(false); setCopiedForAgent(false); },
   });
   const generate = useMutation({
-    mutationFn: () => apiRequest<GeneratedClipboard>('/temporary-contexts/generate', { method: 'POST' }),
+    mutationFn: () => apiRequest<GeneratedTemporaryContext>('/temporary-contexts/generate', { method: 'POST' }),
     onSuccess: data => { setEntry(data.passphrase); setEntryError(null); setPassphrase(data.passphrase); setCopied(false); setCopiedForAgent(false); },
   });
   const append = useMutation({
-    mutationFn: (content: string) => apiRequest<Clipboard>('/temporary-contexts/append', {
+    mutationFn: (content: string) => apiRequest<TemporaryContext>('/temporary-contexts/append', {
       method: 'POST', body: JSON.stringify({ passphrase, content }),
     }),
     onSuccess: async () => { setAddition(''); setAdditionError(null); await read.refetch(); },
@@ -143,12 +147,12 @@ export function ClipboardPage() {
     if (ok) setCopied(true);
   }
   async function copyForAgent() {
-    const instructions = buildClipboardAgentInstructions(passphrase, resolveClipboardApiBase(), read.data?.expiresAt);
+    const instructions = buildTemporaryContextAgentInstructions(passphrase, resolveTemporaryContextApiBase(), read.data?.expiresAt);
     const ok = await copyTextToClipboard(instructions);
     if (ok) setCopiedForAgent(true);
   }
   async function copyAgentGuide() {
-    const ok = await copyTextToClipboard(buildClipboardAgentGuide(resolveClipboardApiBase()));
+    const ok = await copyTextToClipboard(buildTemporaryContextAgentGuide(resolveTemporaryContextApiBase()));
     if (ok) setCopiedGuide(true);
   }
   return (
@@ -165,7 +169,6 @@ export function ClipboardPage() {
             <Tab value="agent" label="For Agents" />
             <Tab value="human" label="For Humans" />
           </TabList>
-
           {activeTab === 'human' ? (
             !passphrase ? (
               <Card>
@@ -301,3 +304,6 @@ export function ClipboardPage() {
     />
   );
 }
+
+// Backwards-compatible alias
+export { TemporaryContextPage as ClipboardPage };

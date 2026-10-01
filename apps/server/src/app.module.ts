@@ -6,9 +6,9 @@ import { DbModule } from './db/db.module.js';
 import { HealthModule } from './health/health.module.js';
 import { McpModule } from './mcp/mcp.module.js';
 import { BusinessGuard } from './common/business.guard.js';
-import { ClipboardModule } from './clipboard/clipboard.module.js';
+import { TemporaryContextModule } from './temporary-context/temporary-context.module.js';
 @Module({
-  imports: [DbModule, HealthModule, AuthModule, ContextModule, McpModule, ClipboardModule],
+  imports: [DbModule, HealthModule, AuthModule, ContextModule, McpModule, TemporaryContextModule],
   providers: [{ provide: APP_GUARD, useClass: BusinessGuard }],
 })
 export class AppModule {}

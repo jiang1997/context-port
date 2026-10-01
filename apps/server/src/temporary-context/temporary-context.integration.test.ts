@@ -9,7 +9,7 @@ import { eq, sql } from 'drizzle-orm';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DATABASE } from '../db/db.module.js';
-import { ClipboardModule } from './clipboard.module.js';
+import { TemporaryContextModule } from './temporary-context.module.js';
 import { BusinessGuard } from '../common/business.guard.js';
 import { SessionService } from '../auth/session.service.js';
 import { ApiKeyService } from '../auth/api-keys.service.js';
@@ -25,7 +25,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Anonymous clipboard integration
     @Module({ providers: [{ provide: DATABASE, useValue: bundle.db }], exports: [DATABASE] })
     class TestDatabaseModule {}
     const module = await Test.createTestingModule({
-      imports: [TestDatabaseModule, ClipboardModule],
+      imports: [TestDatabaseModule, TemporaryContextModule],
       providers: [
         { provide: SessionService, useValue: { resolve: async () => null } },
         { provide: ApiKeyService, useValue: { resolve: async () => null } },
