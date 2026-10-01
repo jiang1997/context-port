@@ -3,7 +3,7 @@ import { ClipboardAccessSchema, ClipboardAppendSchema } from '@contextport/contr
 import { ZodValidationPipe } from '../common/validation/zod-validation.pipe.js';
 import { ClipboardService } from './clipboard.service.js';
 
-@Controller('api/v1/clipboard')
+@Controller(['api/v1/temporary-contexts', 'api/v1/clipboard'])
 export class ClipboardController {
   constructor(@Inject(ClipboardService) private readonly service: ClipboardService) {}
 

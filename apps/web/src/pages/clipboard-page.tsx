@@ -43,10 +43,10 @@ export function buildClipboardAgentInstructions(passphrase: string, apiBase: str
     ...(expiresAt ? [`Expires: ${expiresAt}`] : []),
     '',
     'Read the current content:',
-    `curl -s -X POST "${apiBase}/clipboard/read" -H "Content-Type: application/json" -d ${readPayload}`,
+    `curl -s -X POST "${apiBase}/temporary-contexts/read" -H "Content-Type: application/json" -d ${readPayload}`,
     '',
     'Append / modify (appends Markdown, 1-20000 chars per call, 100000 chars max total):',
-    `curl -s -X POST "${apiBase}/clipboard/append" -H "Content-Type: application/json" -d ${appendPayload}`,
+    `curl -s -X POST "${apiBase}/temporary-contexts/append" -H "Content-Type: application/json" -d ${appendPayload}`,
     '',
     'Notes for agent:',
     '- No login needed, the passphrase is the credential. Keep it secret.',
@@ -62,17 +62,17 @@ export function buildClipboardAgentGuide(apiBase: string): string {
     `API base: ${apiBase}`,
     '',
     '1. Create a new Context (server generates a random passphrase):',
-    `curl -s -X POST "${apiBase}/clipboard/generate"`,
+    `curl -s -X POST "${apiBase}/temporary-contexts/generate"`,
     '→ returns JSON { passphrase, content, version, expiresAt }. Save the passphrase — it is the only credential.',
     '',
     'Or create / enter with your own passphrase (12-128 characters):',
-    `curl -s -X POST "${apiBase}/clipboard/open" -H "Content-Type: application/json" -d '{"passphrase":"YOUR PASSPHRASE"}'`,
+    `curl -s -X POST "${apiBase}/temporary-contexts/open" -H "Content-Type: application/json" -d '{"passphrase":"YOUR PASSPHRASE"}'`,
     '',
     '2. Read the current content:',
-    `curl -s -X POST "${apiBase}/clipboard/read" -H "Content-Type: application/json" -d '{"passphrase":"YOUR PASSPHRASE"}'`,
+    `curl -s -X POST "${apiBase}/temporary-contexts/read" -H "Content-Type: application/json" -d '{"passphrase":"YOUR PASSPHRASE"}'`,
     '',
     '3. Append / modify (appends Markdown, 1-20000 chars per call, 100000 chars max total):',
-    `curl -s -X POST "${apiBase}/clipboard/append" -H "Content-Type: application/json" -d '{"passphrase":"YOUR PASSPHRASE","content":"YOUR TEXT HERE"}'`,
+    `curl -s -X POST "${apiBase}/temporary-contexts/append" -H "Content-Type: application/json" -d '{"passphrase":"YOUR PASSPHRASE","content":"YOUR TEXT HERE"}'`,
     '',
     'Rules for agent:',
     '- No login needed; the passphrase is the credential. Keep it secret.',
@@ -93,21 +93,21 @@ export function ClipboardPage() {
   const [copiedGuide, setCopiedGuide] = useState(false);
   const [activeTab, setActiveTab] = useState<'agent' | 'human'>('agent');
   const read = useQuery({
-    queryKey: ['clipboard', passphrase],
-    queryFn: () => apiRequest<Clipboard>('/clipboard/read', { method: 'POST', body: JSON.stringify({ passphrase }) }),
+    queryKey: ['temporary-context', passphrase],
+    queryFn: () => apiRequest<Clipboard>('/temporary-contexts/read', { method: 'POST', body: JSON.stringify({ passphrase }) }),
     enabled: Boolean(passphrase),
     refetchInterval: 5000,
   });
   const open = useMutation({
-    mutationFn: (value: string) => apiRequest<Clipboard>('/clipboard/open', { method: 'POST', body: JSON.stringify({ passphrase: value }) }),
+    mutationFn: (value: string) => apiRequest<Clipboard>('/temporary-contexts/open', { method: 'POST', body: JSON.stringify({ passphrase: value }) }),
     onSuccess: (_data, value) => { setPassphrase(value); setCopied(false); setCopiedForAgent(false); },
   });
   const generate = useMutation({
-    mutationFn: () => apiRequest<GeneratedClipboard>('/clipboard/generate', { method: 'POST' }),
+    mutationFn: () => apiRequest<GeneratedClipboard>('/temporary-contexts/generate', { method: 'POST' }),
     onSuccess: data => { setEntry(data.passphrase); setEntryError(null); setPassphrase(data.passphrase); setCopied(false); setCopiedForAgent(false); },
   });
   const append = useMutation({
-    mutationFn: (content: string) => apiRequest<Clipboard>('/clipboard/append', {
+    mutationFn: (content: string) => apiRequest<Clipboard>('/temporary-contexts/append', {
       method: 'POST', body: JSON.stringify({ passphrase, content }),
     }),
     onSuccess: async () => { setAddition(''); setAdditionError(null); await read.refetch(); },
@@ -284,10 +284,10 @@ export function ClipboardPage() {
                     No login needed — copy the guide and paste it to your agent so it can create or join temporary workspaces via curl.
                   </Text>
                   <List listStyle="decimal">
-                    <ListItem label={<Text type="body">Generate: <Code>POST /clipboard/generate</Code></Text>} />
-                    <ListItem label={<Text type="body">Open: <Code>POST /clipboard/open</Code></Text>} />
-                    <ListItem label={<Text type="body">Read: <Code>POST /clipboard/read</Code></Text>} />
-                    <ListItem label={<Text type="body">Append: <Code>POST /clipboard/append</Code></Text>} />
+                    <ListItem label={<Text type="body">Generate: <Code>POST /temporary-contexts/generate</Code></Text>} />
+                    <ListItem label={<Text type="body">Open: <Code>POST /temporary-contexts/open</Code></Text>} />
+                    <ListItem label={<Text type="body">Read: <Code>POST /temporary-contexts/read</Code></Text>} />
+                    <ListItem label={<Text type="body">Append: <Code>POST /temporary-contexts/append</Code></Text>} />
                   </List>
                   <div>
                     <Button label={copiedGuide ? 'Copied' : 'Copy agent guide'} variant="secondary" size="sm" onClick={() => void copyAgentGuide()} />

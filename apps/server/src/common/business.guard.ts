@@ -8,7 +8,7 @@ import { ApiKeyService, API_KEY_PREFIX } from '../auth/api-keys.service.js';
 
 /** Browser session endpoints manage their own cookies and must stay public. */
 const PUBLIC_PATH_PREFIXES = ['/health/', '/api/v1/auth/'];
-const CLIPBOARD_PATH = '/api/v1/clipboard/';
+const TEMPORARY_CONTEXT_PATHS = ['/api/v1/temporary-contexts/', '/api/v1/clipboard/'];
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const clipboardRequests = new Map<string, { count: number; resetAt: number }>();
 
@@ -24,14 +24,14 @@ export class BusinessGuard implements CanActivate {
     if (PUBLIC_PATH_PREFIXES.some(prefix => req.path.startsWith(prefix))) return true;
     const env = getEnvironment();
     if (req.headers.origin && !getAllowedOrigins(env).includes(req.headers.origin)) throw new ForbiddenException('Origin is not allowed.');
-    if (req.path.startsWith(CLIPBOARD_PATH)) {
+    if (TEMPORARY_CONTEXT_PATHS.some(prefix => req.path.startsWith(prefix))) {
       const now = Date.now();
       const ip = req.ip ?? req.socket?.remoteAddress ?? 'unknown';
       const current = clipboardRequests.get(ip);
       const next = current && current.resetAt > now ? current : { count: 0, resetAt: now + 60_000 };
       next.count += 1;
       clipboardRequests.set(ip, next);
-      if (next.count > 60) throw new ForbiddenException('Too many clipboard requests. Try again shortly.');
+      if (next.count > 60) throw new ForbiddenException('Too many temporary context requests. Try again shortly.');
       if (clipboardRequests.size > 10_000) for (const [key, value] of clipboardRequests) if (value.resetAt <= now) clipboardRequests.delete(key);
       return true;
     }
