@@ -6,8 +6,10 @@ import { Skeleton } from '@astryxdesign/core/Skeleton';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Text } from '@astryxdesign/core/Text';
 import { fetchMe, googleLoginUrl, logout, type SessionUser } from '../api/auth';
+import { useI18n } from '../i18n';
 
 function UserMenu({ user }: { user: SessionUser }) {
+  const { t } = useI18n();
   const mutation = useMutation({
     mutationFn: logout,
     onSuccess: () => window.location.replace('/'),
@@ -18,7 +20,7 @@ function UserMenu({ user }: { user: SessionUser }) {
       <Text type="label" maxLines={1}>
         {user.name ?? user.email}
       </Text>
-      <Button label={mutation.isPending ? 'Signing out…' : 'Sign out'} variant="ghost" size="sm" isDisabled={mutation.isPending} onClick={() => mutation.mutate()} />
+      <Button label={mutation.isPending ? t('@app.auth.signingOut') : t('@app.auth.signOut')} variant="ghost" size="sm" isDisabled={mutation.isPending} onClick={() => mutation.mutate()} />
     </Stack>
   );
 }
@@ -29,7 +31,8 @@ export function useAuthSession() {
 
 export function LoginButton() {
   const location = useLocation();
-  return <Button label="Sign in" variant="primary" size="sm" href={googleLoginUrl(location.pathname)} />;
+  const { t } = useI18n();
+  return <Button label={t('@app.auth.signIn')} variant="primary" size="sm" href={googleLoginUrl(location.pathname)} />;
 }
 
 export function AuthStatus() {

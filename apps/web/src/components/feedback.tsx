@@ -6,6 +6,7 @@ import { EmptyState } from '@astryxdesign/core/EmptyState';
 import { Skeleton as AstryxSkeleton } from '@astryxdesign/core/Skeleton';
 import { Stack } from '@astryxdesign/core/Stack';
 import { googleLoginUrl } from '../api/auth';
+import { useI18n } from '../i18n';
 
 export function Skeleton({ lines = 3, heading = false }: { lines?: number; heading?: boolean }) {
   return (
@@ -49,16 +50,18 @@ export function Notice({ title, children, action }: { title: string; children?: 
 
 export function SignedOutNotice() {
   const location = useLocation();
+  const { t } = useI18n();
   return (
     <EmptyState
-      title="Not signed in"
-      description="Sign in to create Contexts and to connect your agents to this workspace over MCP."
-      actions={<Button label="Sign in with Google" variant="primary" href={googleLoginUrl(location.pathname)} />}
+      title={t('@app.auth.signedOutTitle')}
+      description={t('@app.auth.signedOutDescription')}
+      actions={<Button label={t('@app.auth.signInWithGoogle')} variant="primary" href={googleLoginUrl(location.pathname)} />}
     />
   );
 }
 
 export function ErrorNotice({ error }: { error: Error | null }) {
+  const { t } = useI18n();
   if (!error) return null;
-  return <Banner status="error" title="Something went wrong" description={error.message} container="card" />;
+  return <Banner status="error" title={t('@app.common.somethingWentWrong')} description={error.message} container="card" />;
 }

@@ -5,6 +5,7 @@ import { Link as RouterLink, RouterProvider } from 'react-router-dom';
 import { Theme } from '@astryxdesign/core/theme';
 import { LinkProvider } from '@astryxdesign/core/Link';
 import { neutralTheme } from '@astryxdesign/theme-neutral/built';
+import { I18nProvider } from './i18n';
 import { router } from './routes';
 import '@astryxdesign/core/reset.css';
 import '@astryxdesign/core/astryx.css';
@@ -32,11 +33,13 @@ if (!root) throw new Error('Root element is missing.');
 createRoot(root).render(
   <StrictMode>
     <Theme theme={neutralTheme}>
-      <LinkProvider component={AstryxRouterLink as never}>
-        <QueryClientProvider client={queryClient}>
-          <RouterProvider router={router} />
-        </QueryClientProvider>
-      </LinkProvider>
+      <I18nProvider>
+        <LinkProvider component={AstryxRouterLink as never}>
+          <QueryClientProvider client={queryClient}>
+            <RouterProvider router={router} />
+          </QueryClientProvider>
+        </LinkProvider>
+      </I18nProvider>
     </Theme>
   </StrictMode>,
 );

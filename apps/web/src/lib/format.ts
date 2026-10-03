@@ -1,12 +1,10 @@
 /**
  * Date and time formatting for the UI.
  *
- * The product targets an English-speaking audience and ships a single set of
- * English strings, so dates are pinned to the same locale. Left to follow the
- * browser, a reader on a zh-CN system would get an English interface with
- * Chinese dates, which reads as a bug rather than as localisation.
+ * Formatting follows the active UI locale so the interface and its dates read
+ * in the same language (an English UI with Chinese dates reads as a bug). The
+ * caller passes `locale`; components get it from `useI18n()`.
  */
-export const LOCALE = 'en';
 
 const RELATIVE_UNITS: ReadonlyArray<readonly [Intl.RelativeTimeFormatUnit, number]> = [
   ['year', 365 * 24 * 60 * 60 * 1000],
@@ -22,11 +20,11 @@ const RELATIVE_UNITS: ReadonlyArray<readonly [Intl.RelativeTimeFormatUnit, numbe
  * "9/25/2026, 12:00:00 PM". Returns an empty string for unparseable input so a
  * bad timestamp degrades to nothing rather than to "Invalid Date".
  */
-export function formatRelativeTime(iso: string, now: number = Date.now()): string {
+export function formatRelativeTime(iso: string, locale: string, now: number = Date.now()): string {
   const then = Date.parse(iso);
   if (Number.isNaN(then)) return '';
 
-  const formatter = new Intl.RelativeTimeFormat(LOCALE, { numeric: 'auto' });
+  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
   const delta = then - now;
   const magnitude = Math.abs(delta);
   // Zero of any unit resolves to "this minute"/"this hour" rather than "now",
@@ -40,8 +38,8 @@ export function formatRelativeTime(iso: string, now: number = Date.now()): strin
 }
 
 /** Full date and time, for tooltips and detail rows. Empty string if unparseable. */
-export function formatDateTime(iso: string): string {
+export function formatDateTime(iso: string, locale: string): string {
   const parsed = Date.parse(iso);
   if (Number.isNaN(parsed)) return '';
-  return new Date(parsed).toLocaleString(LOCALE);
+  return new Date(parsed).toLocaleString(locale);
 }

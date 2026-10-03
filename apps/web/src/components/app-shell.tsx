@@ -5,7 +5,9 @@ import { IconButton } from '@astryxdesign/core/IconButton';
 import { Stack } from '@astryxdesign/core/Stack';
 import { TopNav, TopNavHeading, TopNavItem } from '@astryxdesign/core/TopNav';
 import { AuthStatus } from './auth-status';
+import { LanguageSwitcher } from './language-switcher';
 import { SiteFooter } from './site-footer';
+import { useI18n } from '../i18n';
 
 const GITHUB_REPO_URL = 'https://github.com/jiang1997/context-port';
 
@@ -23,6 +25,7 @@ function GitHubIcon({ size = 18 }: { size?: number }) {
 
 export function AppShellLayout({ children }: PropsWithChildren) {
   const location = useLocation();
+  const { t } = useI18n();
   const path = location.pathname;
   return (
     <div className="site-layout">
@@ -33,27 +36,28 @@ export function AppShellLayout({ children }: PropsWithChildren) {
         contentPadding={4}
         topNav={
           <TopNav
-            label="Main navigation"
+            label={t('@app.nav.label')}
             heading={<TopNavHeading heading="ContextPort" headingHref="/" />}
             endContent={
               <Stack direction="horizontal" gap={2} vAlign="center">
+                <LanguageSwitcher />
                 <IconButton
-                  label="GitHub repository"
+                  label={t('@app.nav.github')}
                   icon={<GitHubIcon />}
                   variant="ghost"
                   size="sm"
                   href={GITHUB_REPO_URL}
                   target="_blank"
                   rel="noreferrer"
-                  tooltip="View on GitHub"
+                  tooltip={t('@app.nav.githubTooltip')}
                 />
                 <AuthStatus />
               </Stack>
             }
           >
-            <TopNavItem href="/" label="Temporary Context" isSelected={path === '/'} />
-            <TopNavItem href="/contexts" label="My Contexts" isSelected={path.startsWith('/contexts')} />
-            <TopNavItem href="/keys" label="API Keys" isSelected={path.startsWith('/keys')} />
+            <TopNavItem href="/" label={t('@app.nav.temporaryContext')} isSelected={path === '/'} />
+            <TopNavItem href="/contexts" label={t('@app.nav.contexts')} isSelected={path.startsWith('/contexts')} />
+            <TopNavItem href="/keys" label={t('@app.nav.keys')} isSelected={path.startsWith('/keys')} />
           </TopNav>
         }
       >

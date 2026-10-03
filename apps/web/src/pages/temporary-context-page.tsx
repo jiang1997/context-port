@@ -15,6 +15,7 @@ import { apiRequest } from '../api/client';
 import { copyTextToClipboard } from '../components/copy-context-id';
 import { ErrorNotice, Skeleton } from '../components/feedback';
 import { MarkdownContent } from '../components/markdown-content';
+import { translate, useI18n, type AppLocale } from '../i18n';
 
 type GeneratedTemporaryContext = TemporaryContext & { passphrase: string };
 
@@ -32,53 +33,61 @@ function shellQuotedJson(payload: string): string {
   return `'${payload.replace(/'/g, `'\"'\"'`)}'`;
 }
 
-export function buildTemporaryContextAgentInstructions(passphrase: string, apiBase: string, expiresAt?: string): string {
+/**
+ * Instructions copied for an agent to read + append one Temporary Context. The
+ * prose follows `locale` (defaults to English, which the tests assert on); the
+ * curl commands are language-neutral.
+ */
+export function buildTemporaryContextAgentInstructions(passphrase: string, apiBase: string, expiresAt?: string, locale: AppLocale = 'en'): string {
+  const t = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values);
   const readPayload = shellQuotedJson(JSON.stringify({ passphrase }));
   const appendPayload = shellQuotedJson(JSON.stringify({ passphrase, content: 'YOUR TEXT HERE' }));
   return [
-    'You have access to a shared Temporary Context.',
+    t('@app.agent.instructions.intro'),
     '',
-    `Passphrase: ${passphrase}`,
-    `API base: ${apiBase}`,
-    ...(expiresAt ? [`Expires: ${expiresAt}`] : []),
+    t('@app.agent.instructions.passphrase', { passphrase }),
+    t('@app.agent.instructions.apiBase', { apiBase }),
+    ...(expiresAt ? [t('@app.agent.instructions.expires', { expires: expiresAt })] : []),
     '',
-    'Read the current content:',
+    t('@app.agent.instructions.readHeading'),
     `curl -s -X POST "${apiBase}/temporary-contexts/read" -H "Content-Type: application/json" -d ${readPayload}`,
     '',
-    'Append / modify (appends Markdown, 1-20000 chars per call, 100000 chars max total):',
+    t('@app.agent.instructions.appendHeading'),
     `curl -s -X POST "${apiBase}/temporary-contexts/append" -H "Content-Type: application/json" -d ${appendPayload}`,
     '',
-    'Notes for agent:',
-    '- No login needed, the passphrase is the credential. Keep it secret.',
-    '- `read` returns JSON { content, version, expiresAt }.',
-    '- `append` concatenates with a blank-line separator. There is no delete/edit API; to "modify", read first then append the correction.',
+    t('@app.agent.instructions.notesHeading'),
+    t('@app.agent.instructions.note1'),
+    t('@app.agent.instructions.note2'),
+    t('@app.agent.instructions.note3'),
   ].join('\n');
 }
 
-export function buildTemporaryContextAgentGuide(apiBase: string): string {
+/** General Temporary Context guide copied for an agent. Prose is localised. */
+export function buildTemporaryContextAgentGuide(apiBase: string, locale: AppLocale = 'en'): string {
+  const t = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values);
   return [
-    'Temporary Context lets any person or agent share short-lived text without login. It expires 7 days after creation.',
+    t('@app.agent.guide.intro'),
     '',
-    `API base: ${apiBase}`,
+    t('@app.agent.guide.apiBase', { apiBase }),
     '',
-    '1. Create a new Context (server generates a random passphrase):',
+    t('@app.agent.guide.step1'),
     `curl -s -X POST "${apiBase}/temporary-contexts/generate"`,
-    '→ returns JSON { passphrase, content, version, expiresAt }. Save the passphrase — it is the only credential.',
+    t('@app.agent.guide.step1Result'),
     '',
-    'Or create / enter with your own passphrase (8-128 characters):',
+    t('@app.agent.guide.orOpen'),
     `curl -s -X POST "${apiBase}/temporary-contexts/open" -H "Content-Type: application/json" -d '{"passphrase":"YOUR PASSPHRASE"}'`,
     '',
-    '2. Read the current content:',
+    t('@app.agent.guide.step2'),
     `curl -s -X POST "${apiBase}/temporary-contexts/read" -H "Content-Type: application/json" -d '{"passphrase":"YOUR PASSPHRASE"}'`,
     '',
-    '3. Append / modify (appends Markdown, 1-20000 chars per call, 100000 chars max total):',
+    t('@app.agent.guide.step3'),
     `curl -s -X POST "${apiBase}/temporary-contexts/append" -H "Content-Type: application/json" -d '{"passphrase":"YOUR PASSPHRASE","content":"YOUR TEXT HERE"}'`,
     '',
-    'Rules for agent:',
-    '- No login needed; the passphrase is the credential. Keep it secret.',
-    '- `read` returns JSON { content, version, expiresAt }.',
-    '- `append` concatenates with a blank-line separator. There is no delete/edit API; to "modify", read first then append the correction.',
-    '- Rate limit is 60 requests/min per IP.',
+    t('@app.agent.guide.rulesHeading'),
+    t('@app.agent.guide.rule1'),
+    t('@app.agent.guide.rule2'),
+    t('@app.agent.guide.rule3'),
+    t('@app.agent.guide.rule4'),
   ].join('\n');
 }
 
@@ -87,6 +96,7 @@ export const buildClipboardAgentInstructions = buildTemporaryContextAgentInstruc
 export const buildClipboardAgentGuide = buildTemporaryContextAgentGuide;
 
 export function TemporaryContextPage() {
+  const { t, locale } = useI18n();
   const [entry, setEntry] = useState('');
   const [entryError, setEntryError] = useState<string | null>(null);
   const [passphrase, setPassphrase] = useState('');
@@ -123,11 +133,11 @@ export function TemporaryContextPage() {
     // 8–128 char contract is enforced here with visible feedback instead
     // of silently ignoring the submit.
     if (entry.length < 8) {
-      setEntryError('Passphrase must be at least 8 characters.');
+      setEntryError(t('@app.temp.passphraseMin'));
       return;
     }
     if (entry.length > 128) {
-      setEntryError('Passphrase must be at most 128 characters.');
+      setEntryError(t('@app.temp.passphraseMax'));
       return;
     }
     setEntryError(null);
@@ -136,7 +146,7 @@ export function TemporaryContextPage() {
   function submitAddition(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!addition) {
-      setAdditionError('Add some text before submitting.');
+      setAdditionError(t('@app.temp.addEmpty'));
       return;
     }
     setAdditionError(null);
@@ -147,12 +157,12 @@ export function TemporaryContextPage() {
     if (ok) setCopied(true);
   }
   async function copyForAgent() {
-    const instructions = buildTemporaryContextAgentInstructions(passphrase, resolveTemporaryContextApiBase(), read.data?.expiresAt);
+    const instructions = buildTemporaryContextAgentInstructions(passphrase, resolveTemporaryContextApiBase(), read.data?.expiresAt, locale);
     const ok = await copyTextToClipboard(instructions);
     if (ok) setCopiedForAgent(true);
   }
   async function copyAgentGuide() {
-    const ok = await copyTextToClipboard(buildTemporaryContextAgentGuide(resolveTemporaryContextApiBase()));
+    const ok = await copyTextToClipboard(buildTemporaryContextAgentGuide(resolveTemporaryContextApiBase(), locale));
     if (ok) setCopiedGuide(true);
   }
   return (
@@ -162,36 +172,36 @@ export function TemporaryContextPage() {
       content={
         <Stack gap={4}>
           <Stack gap={2}>
-            <Heading level={1}>Temporary Context</Heading>
-            <Text type="body">A temporary, login-free workspace to share task context with people or AI agents. Automatically expires in 7 days.</Text>
+            <Heading level={1}>{t('@app.temp.title')}</Heading>
+            <Text type="body">{t('@app.temp.intro')}</Text>
           </Stack>
           <TabList value={activeTab} onChange={val => setActiveTab(val as 'agent' | 'human')} hasDivider role="tablist">
-            <Tab value="agent" label="For Agents" />
-            <Tab value="human" label="For Humans" />
+            <Tab value="agent" label={t('@app.temp.tabAgents')} />
+            <Tab value="human" label={t('@app.temp.tabHumans')} />
           </TabList>
           {activeTab === 'human' ? (
             !passphrase ? (
               <Card>
                 <Stack gap={3}>
-                  <Heading level={2}>Open or Create a Context</Heading>
+                  <Heading level={2}>{t('@app.temp.openHeading')}</Heading>
                   <form onSubmit={submitEntry}>
                     <Stack gap={3}>
                       <TextInput
-                        label="Passphrase"
+                        label={t('@app.temp.passphrase')}
                         value={entry}
                         onChange={value => { setEntry(value); setEntryError(null); }}
                         isRequired
-                        placeholder="At least 8 characters"
+                        placeholder={t('@app.temp.passphrasePlaceholder')}
                         autoComplete="off"
                         {...(entryError ? { status: { type: 'error' as const, message: entryError } } : {})}
                       />
                       <Stack direction="horizontal" gap={3} wrap="wrap">
-                        <Button label="Enter with passphrase" variant="primary" type="submit" isLoading={open.isPending} />
-                        <Button label="Generate random passphrase" variant="secondary" isLoading={generate.isPending} onClick={() => generate.mutate()} />
+                        <Button label={t('@app.temp.enter')} variant="primary" type="submit" isLoading={open.isPending} />
+                        <Button label={t('@app.temp.generate')} variant="secondary" isLoading={generate.isPending} onClick={() => generate.mutate()} />
                       </Stack>
                     </Stack>
                   </form>
-                  <Text type="supporting">Anyone with this passphrase can read and edit. For sensitive content, use &quot;Generate random passphrase&quot; to ensure privacy.</Text>
+                  <Text type="supporting">{t('@app.temp.privacyNote')}</Text>
                   <ErrorNotice error={open.error ?? generate.error} />
                 </Stack>
               </Card>
@@ -199,16 +209,16 @@ export function TemporaryContextPage() {
               <>
                 <Card>
                   <Stack gap={3}>
-                    <Heading level={2}>Share this passphrase</Heading>
+                    <Heading level={2}>{t('@app.temp.shareHeading')}</Heading>
                     <Stack direction="horizontal" gap={2} vAlign="center" wrap="wrap">
                       <Text type="code">{passphrase}</Text>
-                      <Button label={copied ? 'Copied' : 'Copy'} variant="secondary" size="sm" onClick={() => void copyPassphrase()} />
-                      <Button label={copiedForAgent ? 'Copied for agent' : 'Copy for agent'} variant="secondary" size="sm" onClick={() => void copyForAgent()} tooltip="Copy curl instructions for read + append" />
+                      <Button label={copied ? t('@app.common.copied') : t('@app.common.copy')} variant="secondary" size="sm" onClick={() => void copyPassphrase()} />
+                      <Button label={copiedForAgent ? t('@app.temp.copiedForAgent') : t('@app.temp.copyForAgent')} variant="secondary" size="sm" onClick={() => void copyForAgent()} tooltip={t('@app.temp.copyForAgentTooltip')} />
                     </Stack>
-                    <Text type="supporting">The passphrase is your only way back. Keep it somewhere safe until this Context expires.</Text>
+                    <Text type="supporting">{t('@app.temp.keepSafe')}</Text>
                     <div>
                       <Button
-                        label="Leave Context"
+                        label={t('@app.temp.leave')}
                         variant="ghost"
                         size="sm"
                         onClick={() => { setPassphrase(''); setEntry(''); setAddition(''); setCopied(false); setCopiedForAgent(false); }}
@@ -220,14 +230,19 @@ export function TemporaryContextPage() {
                 {read.isPending && <Skeleton lines={4} />}
                 {read.data && !read.error && (
                   <>
-                    <Text type="supporting">Expires {new Date(read.data.expiresAt).toLocaleString()} · version {read.data.version}</Text>
+                    <Text type="supporting">
+                      {t('@app.temp.expires', {
+                        date: new Date(read.data.expiresAt).toLocaleString(locale),
+                        version: read.data.version,
+                      })}
+                    </Text>
                     <Card>
                       <Stack gap={2}>
-                        <Heading level={2}>Shared content</Heading>
+                        <Heading level={2}>{t('@app.temp.sharedContent')}</Heading>
                         {read.data.content ? (
                           <MarkdownContent content={read.data.content} />
                         ) : (
-                          <Text type="supporting">No content yet. Add the first update below or let your agent append to it.</Text>
+                          <Text type="supporting">{t('@app.temp.noContent')}</Text>
                         )}
                       </Stack>
                     </Card>
@@ -235,7 +250,7 @@ export function TemporaryContextPage() {
                       <form onSubmit={submitAddition}>
                         <Stack gap={3}>
                           <TextArea
-                            label="Add to Context"
+                            label={t('@app.temp.addToContext')}
                             value={addition}
                             onChange={value => { setAddition(value); setAdditionError(null); }}
                             isRequired
@@ -245,7 +260,7 @@ export function TemporaryContextPage() {
                           />
                           <ErrorNotice error={append.error} />
                           <div>
-                            <Button label={append.isPending ? 'Adding…' : 'Add content'} variant="primary" type="submit" isLoading={append.isPending} />
+                            <Button label={append.isPending ? t('@app.temp.adding') : t('@app.temp.addContent')} variant="primary" type="submit" isLoading={append.isPending} />
                           </div>
                         </Stack>
                       </form>
@@ -259,19 +274,19 @@ export function TemporaryContextPage() {
               {passphrase ? (
                 <Card>
                   <Stack gap={3}>
-                    <Heading level={2}>Instructions for this Context</Heading>
+                    <Heading level={2}>{t('@app.temp.instructionsHeading')}</Heading>
                     <Text type="supporting">
-                      Your active passphrase is <Code>{passphrase}</Code>. Give these instructions to your agent so it can read and update this specific Context.
+                      {t('@app.temp.activePassphraseLead')}<Code>{passphrase}</Code>{t('@app.temp.activePassphraseTail')}
                     </Text>
                     <Stack direction="horizontal" gap={2} vAlign="center" wrap="wrap">
                       <Button
-                        label={copiedForAgent ? 'Copied instructions' : 'Copy agent instructions'}
+                        label={copiedForAgent ? t('@app.temp.copiedInstructions') : t('@app.temp.copyInstructions')}
                         variant="primary"
                         size="sm"
                         onClick={() => void copyForAgent()}
                       />
                       <Button
-                        label={copied ? 'Copied passphrase' : 'Copy passphrase'}
+                        label={copied ? t('@app.temp.copiedPassphrase') : t('@app.temp.copyPassphrase')}
                         variant="secondary"
                         size="sm"
                         onClick={() => void copyPassphrase()}
@@ -282,18 +297,16 @@ export function TemporaryContextPage() {
               ) : null}
               <Card>
                 <Stack gap={3}>
-                  <Heading level={2}>Agent API Guide</Heading>
-                  <Text type="supporting">
-                    No login needed — copy the guide and paste it to your agent so it can create or join temporary workspaces via curl.
-                  </Text>
+                  <Heading level={2}>{t('@app.temp.guideHeading')}</Heading>
+                  <Text type="supporting">{t('@app.temp.guideIntro')}</Text>
                   <List listStyle="decimal">
-                    <ListItem label={<Text type="body">Generate: <Code>POST /temporary-contexts/generate</Code></Text>} />
-                    <ListItem label={<Text type="body">Open: <Code>POST /temporary-contexts/open</Code></Text>} />
-                    <ListItem label={<Text type="body">Read: <Code>POST /temporary-contexts/read</Code></Text>} />
-                    <ListItem label={<Text type="body">Append: <Code>POST /temporary-contexts/append</Code></Text>} />
+                    <ListItem label={<Text type="body">{t('@app.temp.guideGenerate')} <Code>POST /temporary-contexts/generate</Code></Text>} />
+                    <ListItem label={<Text type="body">{t('@app.temp.guideOpen')} <Code>POST /temporary-contexts/open</Code></Text>} />
+                    <ListItem label={<Text type="body">{t('@app.temp.guideRead')} <Code>POST /temporary-contexts/read</Code></Text>} />
+                    <ListItem label={<Text type="body">{t('@app.temp.guideAppend')} <Code>POST /temporary-contexts/append</Code></Text>} />
                   </List>
                   <div>
-                    <Button label={copiedGuide ? 'Copied' : 'Copy agent guide'} variant="secondary" size="sm" onClick={() => void copyAgentGuide()} />
+                    <Button label={copiedGuide ? t('@app.temp.copiedGuide') : t('@app.temp.copyGuide')} variant="secondary" size="sm" onClick={() => void copyAgentGuide()} />
                   </div>
                 </Stack>
               </Card>

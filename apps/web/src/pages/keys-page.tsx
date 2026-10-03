@@ -12,6 +12,7 @@ import { useAuthSession } from '../components/auth-status';
 import { copyTextToClipboard } from '../components/copy-context-id';
 import { ErrorNotice, LoadingList, SignedOutNotice } from '../components/feedback';
 import { formatDateTime } from '../lib/format';
+import { useI18n } from '../i18n';
 
 const API_ORIGIN = import.meta.env.DEV
   ? 'http://127.0.0.1:3000'
@@ -28,6 +29,7 @@ function curlCommand(key: string, path: string) {
 const codeRowStyle = { flex: '1 1 0%', minWidth: 0, wordBreak: 'break-all' } as const;
 
 function CopyButton({ value }: { value: string }) {
+  const { t } = useI18n();
   const [status, setStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   const timer = useRef<number | null>(null);
   useEffect(() => () => {
@@ -43,7 +45,7 @@ function CopyButton({ value }: { value: string }) {
   }
   return (
     <Button
-      label={status === 'copied' ? 'Copied' : status === 'failed' ? 'Copy failed' : 'Copy'}
+      label={status === 'copied' ? t('@app.common.copied') : status === 'failed' ? t('@app.common.copyFailed') : t('@app.common.copy')}
       variant="secondary"
       size="sm"
       onClick={() => void copy()}
@@ -61,24 +63,25 @@ function CommandRow({ command }: { command: string }) {
 }
 
 function NewKeyBanner({ name, rawKey }: { name: string; rawKey: string }) {
+  const { t } = useI18n();
   const mcpCommand = `claude mcp add --transport http contextport ${MCP_ENDPOINT} --header "Authorization: Bearer ${rawKey}"`;
   return (
     <Card>
       <Stack gap={3}>
-        <Text type="body"><strong>Key &quot;{name}&quot; created.</strong> For security it is shown only this once.</Text>
+        <Text type="body"><strong>{t('@app.keys.createdBanner', { name })}</strong> {t('@app.keys.createdOnce')}</Text>
         <Stack direction="horizontal" gap={2} vAlign="start">
           <Text type="code" style={codeRowStyle}>{rawKey}</Text>
           <CopyButton value={rawKey} />
         </Stack>
-        <Heading level={2}>Quick access with curl</Heading>
-        <Text type="supporting">Give these commands to an Agent that can run curl.</Text>
-        <Text type="label">List your Contexts</Text>
+        <Heading level={2}>{t('@app.keys.quickCurl')}</Heading>
+        <Text type="supporting">{t('@app.keys.quickCurlIntro')}</Text>
+        <Text type="label">{t('@app.keys.cmdListContexts')}</Text>
         <CommandRow command={curlCommand(rawKey, '/contexts?limit=50&offset=0')} />
-        <Text type="label">Read a Context and its Thread index</Text>
+        <Text type="label">{t('@app.keys.cmdReadContext')}</Text>
         <CommandRow command={curlCommand(rawKey, '/contexts/<context-id>')} />
-        <Text type="label">Read a Thread</Text>
+        <Text type="label">{t('@app.keys.cmdReadThread')}</Text>
         <CommandRow command={curlCommand(rawKey, '/contexts/<context-id>/threads/<thread-id>')} />
-        <Text type="label">Or configure an MCP client</Text>
+        <Text type="label">{t('@app.keys.cmdMcp')}</Text>
         <CommandRow command={mcpCommand} />
       </Stack>
     </Card>
@@ -86,6 +89,7 @@ function NewKeyBanner({ name, rawKey }: { name: string; rawKey: string }) {
 }
 
 function KeyForm({ pending }: { pending: boolean }) {
+  const { t } = useI18n();
   const client = useQueryClient();
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
@@ -101,7 +105,7 @@ function KeyForm({ pending }: { pending: boolean }) {
   function submit(event: FormEvent) {
     event.preventDefault();
     if (!name.trim()) {
-      setNameError('Please enter a key name before creating.');
+      setNameError(t('@app.keys.nameRequired'));
       return;
     }
     setNameError(null);
@@ -112,18 +116,18 @@ function KeyForm({ pending }: { pending: boolean }) {
       <form onSubmit={submit}>
         <Stack gap={3}>
           <TextInput
-            label="Key name"
+            label={t('@app.keys.nameLabel')}
             value={name}
             // Cap at the server's 100-char limit the way the old native
             // maxLength did; TextInput cannot carry the attribute itself.
             onChange={value => { setName(value.slice(0, 100)); setNameError(null); }}
             isRequired
-            placeholder="e.g. Claude Desktop, Cursor, CLI"
+            placeholder={t('@app.keys.namePlaceholder')}
             isDisabled={pending}
             {...(nameError ? { status: { type: 'error' as const, message: nameError } } : {})}
           />
           <div>
-            <Button label="Create Key" variant="primary" type="submit" isDisabled={pending || !name.trim()} isLoading={mutation.isPending} />
+            <Button label={t('@app.keys.create')} variant="primary" type="submit" isDisabled={pending || !name.trim()} isLoading={mutation.isPending} />
           </div>
         </Stack>
       </form>
@@ -134,6 +138,7 @@ function KeyForm({ pending }: { pending: boolean }) {
 }
 
 export function KeysPage() {
+  const { t, locale } = useI18n();
   const auth = useAuthSession();
   const client = useQueryClient();
   const query = useQuery({
@@ -157,8 +162,8 @@ export function KeysPage() {
       content={
         <Stack gap={4}>
           <Stack gap={2}>
-            <Heading level={1}>API Keys</Heading>
-            <Text type="body">Use a key with an MCP client or let an Agent call the REST API with curl. Each key can read and write only your own Contexts.</Text>
+            <Heading level={1}>{t('@app.keys.title')}</Heading>
+            <Text type="body">{t('@app.keys.intro')}</Text>
           </Stack>
           {auth.isPending && <LoadingList rows={2} />}
           {!auth.isPending && !auth.data?.user && <SignedOutNotice />}
@@ -169,7 +174,7 @@ export function KeysPage() {
               <ErrorNotice error={revoke.error} />
               {query.isPending && <LoadingList rows={2} />}
               {keys && active.length === 0 && revoked.length === 0 && (
-                <EmptyState title="No keys yet" description="Create an API key to let an Agent access your Contexts through curl or MCP." />
+                <EmptyState title={t('@app.keys.emptyTitle')} description={t('@app.keys.emptyDescription')} />
               )}
               <Stack gap={3}>
                 {active.map(key => (
@@ -177,9 +182,12 @@ export function KeysPage() {
                     <Stack direction="horizontal" gap={3} vAlign="center" justify="between">
                       <Stack gap={1}>
                         <Heading level={2}>{key.name}</Heading>
-                        <Text type="supporting">Created {formatDateTime(key.createdAt)} · Last used {key.lastUsedAt ? formatDateTime(key.lastUsedAt) : 'never'}</Text>
+                        <Text type="supporting">
+                          {t('@app.keys.created', { date: formatDateTime(key.createdAt, locale) })} ·{' '}
+                          {t('@app.keys.lastUsed', { date: key.lastUsedAt ? formatDateTime(key.lastUsedAt, locale) : t('@app.keys.never') })}
+                        </Text>
                       </Stack>
-                      <Button label="Revoke" variant="ghost" size="sm" isLoading={revoke.isPending && revoke.variables === key.id} onClick={() => revoke.mutate(key.id)} />
+                      <Button label={t('@app.keys.revoke')} variant="ghost" size="sm" isLoading={revoke.isPending && revoke.variables === key.id} onClick={() => revoke.mutate(key.id)} />
                     </Stack>
                   </Card>
                 ))}
@@ -187,7 +195,7 @@ export function KeysPage() {
                   <Card key={key.id} variant="muted">
                     <Stack gap={1}>
                       <Heading level={2}>{key.name}</Heading>
-                      <Text type="supporting">Revoked on {formatDateTime(key.revokedAt!)} · future API requests will be rejected</Text>
+                      <Text type="supporting">{t('@app.keys.revokedAt', { date: formatDateTime(key.revokedAt!, locale) })}</Text>
                     </Stack>
                   </Card>
                 ))}

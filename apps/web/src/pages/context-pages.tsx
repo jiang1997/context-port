@@ -18,11 +18,13 @@ import { CopyContextIdButton } from '../components/copy-context-id';
 import { MarkdownContent } from '../components/markdown-content';
 import { RelativeTime } from '../components/relative-time';
 import { ErrorNotice, LoadingList, SignedOutNotice, Skeleton } from '../components/feedback';
+import { useI18n } from '../i18n';
 
 function DocumentForm({ onSave, pending, error, label }: {
   onSave: (data: { title: string; content: string; createdByType: 'human' }) => void;
   pending: boolean; error: Error | null; label: string;
 }) {
+  const { t } = useI18n();
   const [title, setTitle] = useState('');
   const [titleError, setTitleError] = useState<string | null>(null);
   const [content, setContent] = useState('');
@@ -33,7 +35,7 @@ function DocumentForm({ onSave, pending, error, label }: {
     // of silently ignoring the submit (TextInput cannot carry the old native
     // pattern/required constraints).
     if (!trimmed) {
-      setTitleError('Please enter a valid title (cannot be empty or whitespace only).');
+      setTitleError(t('@app.form.titleInvalid'));
       return;
     }
     setTitleError(null);
@@ -43,20 +45,20 @@ function DocumentForm({ onSave, pending, error, label }: {
     <form onSubmit={submit}>
       <Stack gap={4}>
         <TextInput
-          label="Title"
+          label={t('@app.form.title')}
           value={title}
           // Cap at the server's 300-char limit the way the old native
           // maxLength did; TextInput cannot carry the attribute itself.
           onChange={value => { setTitle(value.slice(0, 300)); setTitleError(null); }}
           isRequired
           isDisabled={pending}
-          placeholder="e.g. Launch plan"
+          placeholder={t('@app.form.titlePlaceholder')}
           {...(titleError ? { status: { type: 'error' as const, message: titleError } } : {})}
         />
-        <TextArea label="Body (Markdown)" value={content} onChange={setContent} isDisabled={pending} maxLength={100000} rows={10} />
+        <TextArea label={t('@app.form.body')} value={content} onChange={setContent} isDisabled={pending} maxLength={100000} rows={10} />
         <ErrorNotice error={error} />
         <div>
-          <Button label={pending ? 'Creating…' : label} variant="primary" type="submit" isLoading={pending} />
+          <Button label={pending ? t('@app.form.creating') : label} variant="primary" type="submit" isLoading={pending} />
         </div>
       </Stack>
     </form>
@@ -64,6 +66,7 @@ function DocumentForm({ onSave, pending, error, label }: {
 }
 
 export function ContextListPage() {
+  const { t } = useI18n();
   const [offset, setOffset] = useState(0);
   const auth = useAuthSession();
   const query = useQuery({ queryKey: ['contexts', offset], queryFn: () => apiRequest<ContextSummary[]>(`/contexts?limit=20&offset=${offset}`), enabled: Boolean(auth.data?.user), refetchInterval: 5000 });
@@ -76,10 +79,10 @@ export function ContextListPage() {
         <Stack gap={4}>
           <Stack gap={2}>
             <Stack direction="horizontal" gap={4} vAlign="center" justify="between" wrap="wrap">
-              <Heading level={1}>My Contexts</Heading>
-              {auth.data?.user && <Button label="New Context" variant="primary" href="/contexts/new" />}
+              <Heading level={1}>{t('@app.contexts.title')}</Heading>
+              {auth.data?.user && <Button label={t('@app.contexts.new')} variant="primary" href="/contexts/new" />}
             </Stack>
-            <Text type="body">Contexts store shared project background. Use Threads inside them to collaborate on specific tasks or discussions with your agents.</Text>
+            <Text type="body">{t('@app.contexts.intro')}</Text>
           </Stack>
           <ErrorNotice error={auth.error ?? (auth.data?.user ? query.error : null)} />
           {auth.isPending && <LoadingList />}
@@ -87,9 +90,9 @@ export function ContextListPage() {
           {auth.data?.user && query.isPending && <LoadingList />}
           {contexts?.length === 0 && (
             <EmptyState
-              title="No Contexts yet"
-              description="Create a background document that people and agents can keep building on together."
-              actions={<Button label="Create your first Context" variant="primary" href="/contexts/new" />}
+              title={t('@app.contexts.emptyTitle')}
+              description={t('@app.contexts.emptyDescription')}
+              actions={<Button label={t('@app.contexts.emptyAction')} variant="primary" href="/contexts/new" />}
             />
           )}
           <Stack gap={3}>
@@ -100,9 +103,9 @@ export function ContextListPage() {
                     <Heading level={2}>{item.title}</Heading>
                   </Link>
                   <Stack direction="horizontal" gap={2} vAlign="center" wrap="wrap">
-                    <Badge variant={item.createdByType === 'agent' ? 'info' : 'neutral'} label={item.createdByType === 'agent' ? 'Agent' : 'Human'} />
+                    <Badge variant={item.createdByType === 'agent' ? 'info' : 'neutral'} label={item.createdByType === 'agent' ? t('@app.common.agent') : t('@app.common.human')} />
                     <Text type="supporting">
-                      {item.createdBy ?? 'Anonymous'} · updated <RelativeTime value={item.updatedAt} />
+                      {item.createdBy ?? t('@app.common.anonymous')} · {t('@app.contexts.updatedPrefix')} <RelativeTime value={item.updatedAt} />
                     </Text>
                   </Stack>
                   <CopyContextIdButton contextId={item.id} compact />
@@ -112,8 +115,8 @@ export function ContextListPage() {
           </Stack>
           {auth.data?.user && contexts && (contexts.length > 0 || offset > 0) && (
             <Stack direction="horizontal" gap={3}>
-              <Button label="Previous" variant="secondary" isDisabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 20))} />
-              <Button label="Next" variant="secondary" isDisabled={!contexts || contexts.length < 20} onClick={() => setOffset(offset + 20)} />
+              <Button label={t('@app.common.previous')} variant="secondary" isDisabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 20))} />
+              <Button label={t('@app.common.next')} variant="secondary" isDisabled={!contexts || contexts.length < 20} onClick={() => setOffset(offset + 20)} />
             </Stack>
           )}
         </Stack>
@@ -123,6 +126,7 @@ export function ContextListPage() {
 }
 
 export function ContextCreatePage() {
+  const { t } = useI18n();
   const navigate = useNavigate(); const client = useQueryClient();
   const mutation = useMutation({
     mutationFn: (data: CreateContextInput) => apiRequest<ContextDetail>('/contexts', { method: 'POST', body: JSON.stringify(data) }),
@@ -134,12 +138,12 @@ export function ContextCreatePage() {
       contentWidth={1120}
       content={
         <Stack gap={4}>
-          <Link href="/contexts">← My Contexts</Link>
+          <Link href="/contexts">{t('@app.contexts.backToList')}</Link>
           <Stack gap={2}>
-            <Heading level={1}>New Context</Heading>
-            <Text type="body">Record the goal, the background, and the current shared understanding.</Text>
+            <Heading level={1}>{t('@app.contexts.new')}</Heading>
+            <Text type="body">{t('@app.contexts.createIntro')}</Text>
           </Stack>
-          <DocumentForm onSave={data => mutation.mutate(data)} pending={mutation.isPending} error={mutation.error} label="Create Context" />
+          <DocumentForm onSave={data => mutation.mutate(data)} pending={mutation.isPending} error={mutation.error} label={t('@app.contexts.create')} />
         </Stack>
       }
     />
@@ -147,6 +151,7 @@ export function ContextCreatePage() {
 }
 
 export function ContextDetailPage() {
+  const { t } = useI18n();
   const { contextId } = useParams();
   const query = useQuery({ queryKey: ['context', contextId], queryFn: () => apiRequest<ContextDetail>(`/contexts/${contextId}`), refetchInterval: 5000 });
   const client = useQueryClient(); const navigate = useNavigate();
@@ -160,14 +165,19 @@ export function ContextDetailPage() {
       contentWidth={1120}
       content={
         <Stack gap={4}>
-          <Link href="/contexts">← My Contexts</Link>
+          <Link href="/contexts">{t('@app.contexts.backToList')}</Link>
           <ErrorNotice error={query.error} />
           {query.isPending && <Skeleton lines={6} heading />}
           {query.data && (
             <>
               <Stack gap={2}>
                 <Heading level={1}>{query.data.title}</Heading>
-                <Text type="supporting">{query.data.createdBy ?? query.data.createdByType} · v{query.data.version}</Text>
+                <Text type="supporting">
+                  {t('@app.common.metaVersion', {
+                    author: query.data.createdBy ?? (query.data.createdByType === 'agent' ? t('@app.common.agent') : t('@app.common.human')),
+                    version: query.data.version,
+                  })}
+                </Text>
                 <CopyContextIdButton contextId={query.data.id} />
               </Stack>
               <Card>
@@ -181,20 +191,20 @@ export function ContextDetailPage() {
               <div className="detail-grid">
                 <Card>
                   <Stack gap={3}>
-                    <Heading level={2}>Threads</Heading>
-                    {query.data.threads.length === 0 && <Text type="supporting">No threads yet. Start the first one on the right.</Text>}
+                    <Heading level={2}>{t('@app.threads.heading')}</Heading>
+                    {query.data.threads.length === 0 && <Text type="supporting">{t('@app.threads.empty')}</Text>}
                     {query.data.threads.map(thread => (
                       <Link key={thread.id} href={`/contexts/${contextId}/threads/${thread.id}`} isStandalone>
-                        {thread.title} · {thread.createdBy ?? thread.createdByType}
+                        {thread.title} · {thread.createdBy ?? (thread.createdByType === 'agent' ? t('@app.common.agent') : t('@app.common.human'))}
                       </Link>
                     ))}
                   </Stack>
                 </Card>
                 <Card>
                   <Stack gap={3}>
-                    <Heading level={2}>New Thread</Heading>
-                    <Text type="body">Open a specific topic within this Context.</Text>
-                    <DocumentForm onSave={data => mutation.mutate(data)} pending={mutation.isPending} error={mutation.error} label="Create Thread" />
+                    <Heading level={2}>{t('@app.threads.new')}</Heading>
+                    <Text type="body">{t('@app.threads.newIntro')}</Text>
+                    <DocumentForm onSave={data => mutation.mutate(data)} pending={mutation.isPending} error={mutation.error} label={t('@app.threads.create')} />
                   </Stack>
                 </Card>
               </div>
@@ -207,6 +217,7 @@ export function ContextDetailPage() {
 }
 
 export function ThreadDetailPage() {
+  const { t } = useI18n();
   const { contextId, threadId } = useParams();
   const query = useQuery({ queryKey: ['thread', contextId, threadId], queryFn: () => apiRequest<Thread>(`/contexts/${contextId}/threads/${threadId}`), refetchInterval: 5000 });
   return (
@@ -215,14 +226,19 @@ export function ThreadDetailPage() {
       contentWidth={1120}
       content={
         <Stack gap={4}>
-          <Link href={`/contexts/${contextId}`}>← Back to Context</Link>
+          <Link href={`/contexts/${contextId}`}>{t('@app.threads.backToContext')}</Link>
           <ErrorNotice error={query.error} />
           {query.isPending && <Skeleton lines={6} heading />}
           {query.data && (
             <>
               <Stack gap={2}>
                 <Heading level={1}>{query.data.title}</Heading>
-                <Text type="supporting">{query.data.createdBy ?? query.data.createdByType} · v{query.data.version}</Text>
+                <Text type="supporting">
+                  {t('@app.common.metaVersion', {
+                    author: query.data.createdBy ?? (query.data.createdByType === 'agent' ? t('@app.common.agent') : t('@app.common.human')),
+                    version: query.data.version,
+                  })}
+                </Text>
               </Stack>
               <Card>
                 <MarkdownContent content={query.data.content} />
