@@ -5,6 +5,7 @@ import { IconButton } from '@astryxdesign/core/IconButton';
 import { Stack } from '@astryxdesign/core/Stack';
 import { TopNav, TopNavHeading, TopNavItem } from '@astryxdesign/core/TopNav';
 import { AuthStatus } from './auth-status';
+import { SiteFooter } from './site-footer';
 
 const GITHUB_REPO_URL = 'https://github.com/jiang1997/context-port';
 
@@ -24,38 +25,42 @@ export function AppShellLayout({ children }: PropsWithChildren) {
   const location = useLocation();
   const path = location.pathname;
   return (
-    <AstryxAppShell
-      variant="section"
-      height="auto"
-      contentPadding={4}
-      topNav={
-        <TopNav
-          label="Main navigation"
-          heading={<TopNavHeading heading="ContextPort" headingHref="/" />}
-          endContent={
-            <Stack direction="horizontal" gap={2} vAlign="center">
-              <IconButton
-                label="GitHub repository"
-                icon={<GitHubIcon />}
-                variant="ghost"
-                size="sm"
-                href={GITHUB_REPO_URL}
-                target="_blank"
-                rel="noreferrer"
-                tooltip="View on GitHub"
-              />
-              <AuthStatus />
-            </Stack>
-          }
-        >
-          <TopNavItem href="/" label="Temporary Context" isSelected={path === '/'} />
-          <TopNavItem href="/contexts" label="My Contexts" isSelected={path.startsWith('/contexts')} />
-          <TopNavItem href="/keys" label="API Keys" isSelected={path.startsWith('/keys')} />
-        </TopNav>
-      }
-    >
-      {children}
-    </AstryxAppShell>
+    <div className="site-layout">
+      <AstryxAppShell
+        style={{ minHeight: 0, flex: 1 }}
+        variant="section"
+        height="auto"
+        contentPadding={4}
+        topNav={
+          <TopNav
+            label="Main navigation"
+            heading={<TopNavHeading heading="ContextPort" headingHref="/" />}
+            endContent={
+              <Stack direction="horizontal" gap={2} vAlign="center">
+                <IconButton
+                  label="GitHub repository"
+                  icon={<GitHubIcon />}
+                  variant="ghost"
+                  size="sm"
+                  href={GITHUB_REPO_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  tooltip="View on GitHub"
+                />
+                <AuthStatus />
+              </Stack>
+            }
+          >
+            <TopNavItem href="/" label="Temporary Context" isSelected={path === '/'} />
+            <TopNavItem href="/contexts" label="My Contexts" isSelected={path.startsWith('/contexts')} />
+            <TopNavItem href="/keys" label="API Keys" isSelected={path.startsWith('/keys')} />
+          </TopNav>
+        }
+      >
+        {children}
+      </AstryxAppShell>
+      <SiteFooter />
+    </div>
   );
 }
 
