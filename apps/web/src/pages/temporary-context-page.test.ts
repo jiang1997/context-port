@@ -38,14 +38,14 @@ describe('Temporary Context Agent Instructions & Guide', () => {
 
   it('localises the prose for Chinese while keeping curl commands intact', () => {
     const instructions = buildTemporaryContextAgentInstructions('secret-passphrase-123', apiBase, undefined, 'zh-CN');
-    expect(instructions).toContain('你可以访问一个共享的临时 Context。');
-    expect(instructions).toContain('Passphrase：secret-passphrase-123');
+    expect(instructions).toContain('你可以使用以下口令访问这份临时上下文，与用户共享任务信息。');
+    expect(instructions).toContain('访问口令：secret-passphrase-123');
     expect(instructions).toContain(
       'curl -s -X POST "https://api.example.com/api/v1/temporary-contexts/read"',
     );
 
     const guide = buildTemporaryContextAgentGuide(apiBase, 'zh-CN');
-    expect(guide).toContain('临时 Context 让任何人或智能体无需登录即可共享短期文本。');
+    expect(guide).toContain('临时上下文用于与用户或其他智能体共享任务信息，无需登录，内容在创建 7 天后过期。');
     expect(guide).toContain('curl -s -X POST "https://api.example.com/api/v1/temporary-contexts/generate"');
     // The literal JSON brace examples must survive interpolation untouched.
     expect(guide).toContain('{ passphrase, content, version, expiresAt }');
