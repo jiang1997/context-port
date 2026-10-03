@@ -4,6 +4,7 @@ import {
   buildTemporaryContextAgentGuide,
   buildClipboardAgentInstructions,
   buildClipboardAgentGuide,
+  validateAgentGuidePassphrase,
 } from './temporary-context-page';
 
 describe('Temporary Context Agent Instructions & Guide', () => {
@@ -31,9 +32,43 @@ describe('Temporary Context Agent Instructions & Guide', () => {
     expect(guide).toContain('curl -s -X POST "https://api.example.com/api/v1/temporary-contexts/read"');
     expect(guide).toContain('curl -s -X POST "https://api.example.com/api/v1/temporary-contexts/append"');
     expect(guide).not.toContain('/clipboard/');
+    expect(guide).toContain('Return the generated passphrase to the user');
 
     // Backwards-compatible alias matches
     expect(buildClipboardAgentGuide(apiBase)).toBe(guide);
+  });
+
+  it.each(['en', 'zh-CN'] as const)('uses the supplied passphrase in every command (%s)', locale => {
+    const passphrase = 'chosen-passphrase-123';
+    const guide = buildTemporaryContextAgentGuide(apiBase, locale, passphrase);
+    const commands = guide.split('\n').filter(line => line.startsWith('curl '));
+    expect(commands).toHaveLength(3);
+    expect(commands[0]).toContain('/temporary-contexts/open');
+    expect(commands[1]).toContain('/temporary-contexts/read');
+    expect(commands[2]).toContain('/temporary-contexts/append');
+    for (const command of commands) expect(command).toContain(`"passphrase":"${passphrase}"`);
+    expect(guide).not.toContain('/temporary-contexts/generate');
+    expect(guide).not.toContain('YOUR PASSPHRASE');
+  });
+
+  it('preserves quotes, spaces, and shell metacharacters in a supplied passphrase', () => {
+    const passphrase = `  it's "quoted" $HOME  `;
+    const guide = buildTemporaryContextAgentGuide(apiBase, 'en', passphrase);
+    const commands = guide.split('\n').filter(line => line.startsWith('curl '));
+    const escapedPassphrase = String.raw`"passphrase":"  it'"'"'s \"quoted\" $HOME  "`;
+    for (const command of commands) {
+      expect(command).toContain(escapedPassphrase);
+      expect(command).toContain(" -d '{");
+      expect(command).toMatch(/}'$/);
+    }
+  });
+
+  it('allows an empty passphrase but enforces the supplied credential length', () => {
+    expect(validateAgentGuidePassphrase('')).toBeNull();
+    expect(validateAgentGuidePassphrase('a'.repeat(7))).toBe('@app.temp.passphraseMin');
+    expect(validateAgentGuidePassphrase('a'.repeat(8))).toBeNull();
+    expect(validateAgentGuidePassphrase('a'.repeat(128))).toBeNull();
+    expect(validateAgentGuidePassphrase('a'.repeat(129))).toBe('@app.temp.passphraseMax');
   });
 
   it('localises the prose for Chinese while keeping curl commands intact', () => {

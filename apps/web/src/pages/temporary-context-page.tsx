@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { TemporaryContext } from '@contextport/contracts';
 import { Button } from '@astryxdesign/core/Button';
@@ -15,7 +15,7 @@ import { apiRequest } from '../api/client';
 import { copyTextToClipboard } from '../components/copy-context-id';
 import { ErrorNotice, Skeleton } from '../components/feedback';
 import { MarkdownContent } from '../components/markdown-content';
-import { translate, useI18n, type AppLocale } from '../i18n';
+import { translate, useI18n, type AppLocale, type AppMessageKey } from '../i18n';
 
 type GeneratedTemporaryContext = TemporaryContext & { passphrase: string };
 
@@ -62,26 +62,45 @@ export function buildTemporaryContextAgentInstructions(passphrase: string, apiBa
   ].join('\n');
 }
 
-/** General Temporary Context guide copied for an agent. Prose is localised. */
-export function buildTemporaryContextAgentGuide(apiBase: string, locale: AppLocale = 'en'): string {
+/** Leave the passphrase empty to let the agent generate one; otherwise use it verbatim. */
+export function validateAgentGuidePassphrase(passphrase: string): AppMessageKey | null {
+  if (passphrase.length > 0 && passphrase.length < 8) return '@app.temp.passphraseMin';
+  if (passphrase.length > 128) return '@app.temp.passphraseMax';
+  return null;
+}
+
+/** Localised guide for a supplied passphrase, or for an agent to generate one. */
+export function buildTemporaryContextAgentGuide(apiBase: string, locale: AppLocale = 'en', passphrase = ''): string {
   const t = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values);
+  const credential = passphrase || 'YOUR PASSPHRASE';
+  const readPayload = shellQuotedJson(JSON.stringify({ passphrase: credential }));
+  const appendPayload = shellQuotedJson(JSON.stringify({ passphrase: credential, content: 'YOUR TEXT HERE' }));
   return [
     t('@app.agent.guide.intro'),
     '',
     t('@app.agent.guide.apiBase', { apiBase }),
     '',
-    t('@app.agent.guide.step1'),
-    `curl -s -X POST "${apiBase}/temporary-contexts/generate"`,
-    t('@app.agent.guide.step1Result'),
-    '',
-    t('@app.agent.guide.orOpen'),
-    `curl -s -X POST "${apiBase}/temporary-contexts/open" -H "Content-Type: application/json" -d '{"passphrase":"YOUR PASSPHRASE"}'`,
+    ...(passphrase ? [
+      t('@app.agent.instructions.passphrase', { passphrase }),
+      '',
+      t('@app.agent.guide.openStep'),
+      `curl -s -X POST "${apiBase}/temporary-contexts/open" -H "Content-Type: application/json" -d ${readPayload}`,
+      t('@app.agent.guide.openResult'),
+    ] : [
+      t('@app.agent.guide.step1'),
+      `curl -s -X POST "${apiBase}/temporary-contexts/generate"`,
+      t('@app.agent.guide.step1Result'),
+      t('@app.agent.guide.generatedNext'),
+      '',
+      t('@app.agent.guide.orOpen'),
+      `curl -s -X POST "${apiBase}/temporary-contexts/open" -H "Content-Type: application/json" -d ${readPayload}`,
+    ]),
     '',
     t('@app.agent.guide.step2'),
-    `curl -s -X POST "${apiBase}/temporary-contexts/read" -H "Content-Type: application/json" -d '{"passphrase":"YOUR PASSPHRASE"}'`,
+    `curl -s -X POST "${apiBase}/temporary-contexts/read" -H "Content-Type: application/json" -d ${readPayload}`,
     '',
     t('@app.agent.guide.step3'),
-    `curl -s -X POST "${apiBase}/temporary-contexts/append" -H "Content-Type: application/json" -d '{"passphrase":"YOUR PASSPHRASE","content":"YOUR TEXT HERE"}'`,
+    `curl -s -X POST "${apiBase}/temporary-contexts/append" -H "Content-Type: application/json" -d ${appendPayload}`,
     '',
     t('@app.agent.guide.rulesHeading'),
     t('@app.agent.guide.rule1'),
@@ -105,7 +124,20 @@ export function TemporaryContextPage() {
   const [copied, setCopied] = useState(false);
   const [copiedForAgent, setCopiedForAgent] = useState(false);
   const [copiedGuide, setCopiedGuide] = useState(false);
+  const [guidePassphrase, setGuidePassphrase] = useState('');
+  const [guideError, setGuideError] = useState<AppMessageKey | null>(null);
   const [activeTab, setActiveTab] = useState<'agent' | 'human'>('agent');
+  useEffect(() => {
+    if (!copiedGuide) return;
+    const timer = window.setTimeout(() => setCopiedGuide(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [copiedGuide]);
+
+  function prefillGuide(value: string) {
+    setGuidePassphrase(value);
+    setGuideError(null);
+    setCopiedGuide(false);
+  }
   const read = useQuery({
     queryKey: ['temporary-context', passphrase],
     queryFn: () => apiRequest<TemporaryContext>('/temporary-contexts/read', { method: 'POST', body: JSON.stringify({ passphrase }) }),
@@ -114,11 +146,11 @@ export function TemporaryContextPage() {
   });
   const open = useMutation({
     mutationFn: (value: string) => apiRequest<TemporaryContext>('/temporary-contexts/open', { method: 'POST', body: JSON.stringify({ passphrase: value }) }),
-    onSuccess: (_data, value) => { setPassphrase(value); setCopied(false); setCopiedForAgent(false); },
+    onSuccess: (_data, value) => { setPassphrase(value); prefillGuide(value); setCopied(false); setCopiedForAgent(false); },
   });
   const generate = useMutation({
     mutationFn: () => apiRequest<GeneratedTemporaryContext>('/temporary-contexts/generate', { method: 'POST' }),
-    onSuccess: data => { setEntry(data.passphrase); setEntryError(null); setPassphrase(data.passphrase); setCopied(false); setCopiedForAgent(false); },
+    onSuccess: data => { setEntry(data.passphrase); setEntryError(null); setPassphrase(data.passphrase); prefillGuide(data.passphrase); setCopied(false); setCopiedForAgent(false); },
   });
   const append = useMutation({
     mutationFn: (content: string) => apiRequest<TemporaryContext>('/temporary-contexts/append', {
@@ -162,8 +194,13 @@ export function TemporaryContextPage() {
     if (ok) setCopiedForAgent(true);
   }
   async function copyAgentGuide() {
-    const ok = await copyTextToClipboard(buildTemporaryContextAgentGuide(resolveTemporaryContextApiBase(), locale));
-    if (ok) setCopiedGuide(true);
+    const error = validateAgentGuidePassphrase(guidePassphrase);
+    setGuideError(error);
+    setCopiedGuide(false);
+    if (error) return;
+    const ok = await copyTextToClipboard(buildTemporaryContextAgentGuide(resolveTemporaryContextApiBase(), locale, guidePassphrase));
+    setCopiedGuide(ok);
+    if (!ok) setGuideError('@app.temp.guideCopyFailed');
   }
   return (
     <Layout
@@ -221,7 +258,7 @@ export function TemporaryContextPage() {
                         label={t('@app.temp.leave')}
                         variant="ghost"
                         size="sm"
-                        onClick={() => { setPassphrase(''); setEntry(''); setAddition(''); setCopied(false); setCopiedForAgent(false); }}
+                        onClick={() => { setPassphrase(''); prefillGuide(''); setEntry(''); setAddition(''); setCopied(false); setCopiedForAgent(false); }}
                       />
                     </div>
                   </Stack>
@@ -271,30 +308,6 @@ export function TemporaryContextPage() {
             )
           ) : (
             <Stack gap={4}>
-              {passphrase ? (
-                <Card>
-                  <Stack gap={3}>
-                    <Heading level={2}>{t('@app.temp.instructionsHeading')}</Heading>
-                    <Text type="supporting">
-                      {t('@app.temp.activePassphraseLead')}<Code>{passphrase}</Code>{t('@app.temp.activePassphraseTail')}
-                    </Text>
-                    <Stack direction="horizontal" gap={2} vAlign="center" wrap="wrap">
-                      <Button
-                        label={copiedForAgent ? t('@app.temp.copiedInstructions') : t('@app.temp.copyInstructions')}
-                        variant="primary"
-                        size="sm"
-                        onClick={() => void copyForAgent()}
-                      />
-                      <Button
-                        label={copied ? t('@app.temp.copiedPassphrase') : t('@app.temp.copyPassphrase')}
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => void copyPassphrase()}
-                      />
-                    </Stack>
-                  </Stack>
-                </Card>
-              ) : null}
               <Card>
                 <Stack gap={3}>
                   <Heading level={2}>{t('@app.temp.guideHeading')}</Heading>
@@ -305,9 +318,28 @@ export function TemporaryContextPage() {
                     <ListItem label={<Text type="body">{t('@app.temp.guideRead')} <Code>POST /temporary-contexts/read</Code></Text>} />
                     <ListItem label={<Text type="body">{t('@app.temp.guideAppend')} <Code>POST /temporary-contexts/append</Code></Text>} />
                   </List>
-                  <div>
-                    <Button label={copiedGuide ? t('@app.temp.copiedGuide') : t('@app.temp.copyGuide')} variant="secondary" size="sm" onClick={() => void copyAgentGuide()} />
-                  </div>
+                  <form onSubmit={event => { event.preventDefault(); void copyAgentGuide(); }}>
+                    <Stack gap={3}>
+                      <TextInput
+                        label={t('@app.temp.passphrase')}
+                        isOptional
+                        value={guidePassphrase}
+                        onChange={value => { setGuidePassphrase(value); setGuideError(null); setCopiedGuide(false); }}
+                        placeholder={t('@app.temp.guidePassphrasePlaceholder')}
+                        description={t('@app.temp.guidePassphraseLengthHint')}
+                        autoComplete="off"
+                        {...(guideError ? { status: { type: 'error' as const, message: t(guideError) } } : {})}
+                      />
+                      {copiedGuide && (
+                        <Text type="supporting" aria-live="polite">
+                          {t('@app.temp.guideCopiedHint')}
+                        </Text>
+                      )}
+                      <div>
+                        <Button label={copiedGuide ? t('@app.temp.copiedGuide') : t('@app.temp.copyGuide')} variant="primary" type="submit" />
+                      </div>
+                    </Stack>
+                  </form>
                 </Stack>
               </Card>
             </Stack>
