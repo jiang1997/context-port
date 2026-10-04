@@ -146,6 +146,7 @@ export const enCatalog = {
   '@app.temp.copyForAgent': { defaultMessage: 'Copy Prompt' },
   '@app.temp.copiedForAgent': { defaultMessage: 'Prompt copied' },
   '@app.temp.copyForAgentTooltip': { defaultMessage: 'Copy a prompt with curl commands for your agent to read and append content' },
+  '@app.temp.copyPassphraseTooltip': { defaultMessage: 'Copy only the access passphrase' },
   '@app.temp.keepSafe': {
     defaultMessage: 'The passphrase is your only way back. Keep it somewhere safe until this Context expires.',
   },
@@ -365,6 +366,7 @@ export const zhCNCatalog: Record<AppMessageKey, MessageEntry> = {
   '@app.temp.copyForAgent': { defaultMessage: '复制提示词' },
   '@app.temp.copiedForAgent': { defaultMessage: '提示词已复制' },
   '@app.temp.copyForAgentTooltip': { defaultMessage: '复制包含 curl 命令的提示词，让智能体读取和追加内容' },
+  '@app.temp.copyPassphraseTooltip': { defaultMessage: '仅复制访问口令' },
   '@app.temp.keepSafe': {
     defaultMessage: '再次打开这份上下文需要使用同一个口令，请妥善保存。',
   },

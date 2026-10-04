@@ -275,7 +275,7 @@ export function TemporaryContextPage() {
                     <Heading level={2}>{t('@app.temp.shareHeading')}</Heading>
                     <Stack direction="horizontal" gap={2} vAlign="center" wrap="wrap">
                       <Text type="code">{passphrase}</Text>
-                      <Button label={copied ? t('@app.common.copied') : t('@app.common.copy')} variant="secondary" size="sm" onClick={() => void copyPassphrase()} />
+                      <Button label={copied ? t('@app.temp.copiedPassphrase') : t('@app.temp.copyPassphrase')} variant="secondary" size="sm" onClick={() => void copyPassphrase()} tooltip={t('@app.temp.copyPassphraseTooltip')} />
                       <Button label={copiedForAgent ? t('@app.temp.copiedForAgent') : t('@app.temp.copyForAgent')} variant="secondary" size="sm" onClick={() => void copyForAgent()} tooltip={t('@app.temp.copyForAgentTooltip')} />
                     </Stack>
                     <Text type="supporting">{t('@app.temp.keepSafe')}</Text>
