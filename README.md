@@ -14,7 +14,7 @@ restoration, archiving, and custom ordering are deferred. Future edits must chec
 
 Open `/` (or legacy `/clipboard`) in the Web app. Enter a passphrase of at least 8 characters, or generate
 a random one. The first use creates a temporary Context; the same passphrase opens it again.
-Anyone with the passphrase can read, append, and edit content. It expires 7 days after creation;
+Anyone with the passphrase can read, append, and edit content. In For Humans, choose Edit content to change or clear the existing text, then save or cancel. It expires 7 days after creation;
 using the passphrase after expiry creates a new, empty Context. Prefer generated passphrases
 for private content. The Web app does not put passphrases in URLs.
 

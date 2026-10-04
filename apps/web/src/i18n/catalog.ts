@@ -152,6 +152,11 @@ export const enCatalog = {
   '@app.temp.leave': { defaultMessage: 'Leave Context' },
   '@app.temp.expires': { defaultMessage: 'Expires {date} · version {version}' },
   '@app.temp.sharedContent': { defaultMessage: 'Shared content' },
+  '@app.temp.editContent': { defaultMessage: 'Edit content' },
+  '@app.temp.saveChanges': { defaultMessage: 'Save changes' },
+  '@app.temp.cancelEdit': { defaultMessage: 'Cancel editing' },
+  '@app.temp.latestContent': { defaultMessage: 'Latest shared content' },
+  '@app.temp.editConflict': { defaultMessage: 'This context changed while you were editing. Your draft is preserved. Copy your changes, then cancel and edit the latest content below to merge them.' },
   '@app.temp.noContent': {
     defaultMessage: 'No content yet. Add the first update below or let your agent append to it.',
   },
@@ -354,7 +359,7 @@ export const zhCNCatalog: Record<AppMessageKey, MessageEntry> = {
   '@app.temp.enter': { defaultMessage: '使用口令打开' },
   '@app.temp.generate': { defaultMessage: '随机生成口令并创建' },
   '@app.temp.privacyNote': {
-    defaultMessage: '知道口令的人都可以查看和追加内容。共享敏感信息时，建议随机生成口令，并只分享给可信的人或智能体。',
+    defaultMessage: '知道口令的人都可以查看、追加和修改内容。共享敏感信息时，建议随机生成口令，并只分享给可信的人或智能体。',
   },
   '@app.temp.shareHeading': { defaultMessage: '分享访问口令' },
   '@app.temp.copyForAgent': { defaultMessage: '复制提示词' },
@@ -366,6 +371,11 @@ export const zhCNCatalog: Record<AppMessageKey, MessageEntry> = {
   '@app.temp.leave': { defaultMessage: '退出当前上下文' },
   '@app.temp.expires': { defaultMessage: '有效期至 {date} · 版本 {version}' },
   '@app.temp.sharedContent': { defaultMessage: '共享内容' },
+  '@app.temp.editContent': { defaultMessage: '编辑内容' },
+  '@app.temp.saveChanges': { defaultMessage: '保存修改' },
+  '@app.temp.cancelEdit': { defaultMessage: '取消编辑' },
+  '@app.temp.latestContent': { defaultMessage: '最新共享内容' },
+  '@app.temp.editConflict': { defaultMessage: '编辑期间上下文已被更新，你的草稿已保留。请复制你的修改，再取消编辑，重新编辑下方的最新内容以合并修改。' },
   '@app.temp.noContent': {
     defaultMessage: '这里还没有内容。你可以在下方添加，也可以让智能体追加。',
   },

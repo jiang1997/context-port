@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { TemporaryContext } from '@contextport/contracts';
 import { Button } from '@astryxdesign/core/Button';
 import { Card } from '@astryxdesign/core/Card';
@@ -11,7 +11,7 @@ import { Tab, TabList } from '@astryxdesign/core/TabList';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { TextArea } from '@astryxdesign/core/TextArea';
 import { TextInput } from '@astryxdesign/core/TextInput';
-import { apiRequest } from '../api/client';
+import { ApiError, apiRequest } from '../api/client';
 import { copyTextToClipboard } from '../components/copy-context-id';
 import { ErrorNotice, Skeleton } from '../components/feedback';
 import { MarkdownContent } from '../components/markdown-content';
@@ -116,11 +116,13 @@ export const buildClipboardAgentGuide = buildTemporaryContextAgentGuide;
 
 export function TemporaryContextPage() {
   const { t, locale } = useI18n();
+  const queryClient = useQueryClient();
   const [entry, setEntry] = useState('');
   const [entryError, setEntryError] = useState<string | null>(null);
   const [passphrase, setPassphrase] = useState('');
   const [addition, setAddition] = useState('');
   const [additionError, setAdditionError] = useState<string | null>(null);
+  const [edit, setEdit] = useState<{ content: string; version: number } | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedForAgent, setCopiedForAgent] = useState(false);
   const [copiedGuide, setCopiedGuide] = useState(false);
@@ -158,6 +160,30 @@ export function TemporaryContextPage() {
     }),
     onSuccess: async () => { setAddition(''); setAdditionError(null); await read.refetch(); },
   });
+  const update = useMutation({
+    mutationFn: (draft: { content: string; version: number }) => apiRequest<TemporaryContext>('/temporary-contexts/update', {
+      method: 'POST', body: JSON.stringify({ passphrase, content: draft.content, expectedVersion: draft.version }),
+    }),
+    onSuccess: data => {
+      queryClient.setQueryData(['temporary-context', passphrase], data);
+      setEdit(null);
+      void read.refetch();
+    },
+    onError: () => { void read.refetch(); },
+  });
+  const editConflict = (update.error instanceof ApiError && update.error.status === 409)
+    || (edit !== null && read.data !== undefined && edit.version !== read.data.version);
+
+  function startEditing() {
+    if (!read.data) return;
+    update.reset();
+    setEdit({ content: read.data.content, version: read.data.version });
+  }
+
+  function submitEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (edit && !editConflict && !update.isPending) update.mutate(edit);
+  }
   function submitEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     // TextInput cannot carry the native minLength/maxLength constraints
@@ -258,7 +284,8 @@ export function TemporaryContextPage() {
                         label={t('@app.temp.leave')}
                         variant="ghost"
                         size="sm"
-                        onClick={() => { setPassphrase(''); prefillGuide(''); setEntry(''); setAddition(''); setCopied(false); setCopiedForAgent(false); }}
+                        isDisabled={update.isPending || append.isPending}
+                        onClick={() => { setPassphrase(''); prefillGuide(''); setEntry(''); setAddition(''); setAdditionError(null); setEdit(null); update.reset(); append.reset(); setCopied(false); setCopiedForAgent(false); }}
                       />
                     </div>
                   </Stack>
@@ -276,32 +303,65 @@ export function TemporaryContextPage() {
                     <Card>
                       <Stack gap={2}>
                         <Heading level={2}>{t('@app.temp.sharedContent')}</Heading>
-                        {read.data.content ? (
-                          <MarkdownContent content={read.data.content} />
+                        {edit ? (
+                          <form onSubmit={submitEdit}>
+                            <Stack gap={3}>
+                              <TextArea
+                                label={t('@app.temp.editContent')}
+                                value={edit.content}
+                                onChange={content => setEdit({ ...edit, content })}
+                                isDisabled={update.isPending}
+                                maxLength={100_000}
+                                rows={14}
+                              />
+                              {editConflict && (
+                                <Text type="supporting" role="alert">{t('@app.temp.editConflict')}</Text>
+                              )}
+                              <ErrorNotice error={update.error instanceof ApiError && update.error.status === 409 ? null : update.error} />
+                              <Stack direction="horizontal" gap={3} wrap="wrap">
+                                <Button label={t('@app.temp.saveChanges')} variant="primary" type="submit" isLoading={update.isPending} isDisabled={editConflict || update.isPending} />
+                                <Button label={t('@app.temp.cancelEdit')} variant="secondary" isDisabled={update.isPending} onClick={() => { setEdit(null); update.reset(); }} />
+                              </Stack>
+                              {editConflict && <Heading level={3}>{t('@app.temp.latestContent')}</Heading>}
+                            </Stack>
+                          </form>
                         ) : (
-                          <Text type="supporting">{t('@app.temp.noContent')}</Text>
+                          <div>
+                            <Button label={t('@app.temp.editContent')} variant="secondary" size="sm" isDisabled={append.isPending} onClick={startEditing} />
+                          </div>
+                        )}
+                        {(!edit || editConflict) && (
+                          <>
+                            {read.data.content ? (
+                              <MarkdownContent content={read.data.content} />
+                            ) : (
+                              <Text type="supporting">{t('@app.temp.noContent')}</Text>
+                            )}
+                          </>
                         )}
                       </Stack>
                     </Card>
-                    <Card>
-                      <form onSubmit={submitAddition}>
-                        <Stack gap={3}>
-                          <TextArea
-                            label={t('@app.temp.addToContext')}
-                            value={addition}
-                            onChange={value => { setAddition(value); setAdditionError(null); }}
-                            isRequired
-                            maxLength={20_000}
-                            rows={7}
-                            {...(additionError ? { status: { type: 'error' as const, message: additionError } } : {})}
-                          />
-                          <ErrorNotice error={append.error} />
-                          <div>
-                            <Button label={append.isPending ? t('@app.temp.adding') : t('@app.temp.addContent')} variant="primary" type="submit" isLoading={append.isPending} />
-                          </div>
-                        </Stack>
-                      </form>
-                    </Card>
+                    {!edit && (
+                      <Card>
+                        <form onSubmit={submitAddition}>
+                          <Stack gap={3}>
+                            <TextArea
+                              label={t('@app.temp.addToContext')}
+                              value={addition}
+                              onChange={value => { setAddition(value); setAdditionError(null); }}
+                              isRequired
+                              maxLength={20_000}
+                              rows={7}
+                              {...(additionError ? { status: { type: 'error' as const, message: additionError } } : {})}
+                            />
+                            <ErrorNotice error={append.error} />
+                            <div>
+                              <Button label={append.isPending ? t('@app.temp.adding') : t('@app.temp.addContent')} variant="primary" type="submit" isLoading={append.isPending} />
+                            </div>
+                          </Stack>
+                        </form>
+                      </Card>
+                    )}
                   </>
                 )}
               </>
