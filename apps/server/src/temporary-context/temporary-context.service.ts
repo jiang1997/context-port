@@ -1,8 +1,8 @@
 import { createHmac, randomBytes } from 'node:crypto';
-import { Inject, Injectable, NotFoundException, PayloadTooLargeException } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException, PayloadTooLargeException } from '@nestjs/common';
 import { and, eq, gt, sql } from 'drizzle-orm';
 import { clipboards, type Database } from '@contextport/db';
-import { PassphraseSchema } from '@contextport/contracts';
+import { PassphraseSchema, TemporaryContextUpdateSchema } from '@contextport/contracts';
 import { DATABASE } from '../db/db.module.js';
 import { getEnvironment } from '../config/environment.js';
 
@@ -63,6 +63,30 @@ export class TemporaryContextService {
     if (!row) {
       await this.read(passphrase);
       throw new PayloadTooLargeException('Temporary Context is full (100,000 characters).');
+    }
+    return this.publicRow(row);
+  }
+
+  async update(passphrase: string, content: string, expectedVersion: number) {
+    TemporaryContextUpdateSchema.parse({ passphrase, content, expectedVersion });
+    const hash = this.hash(passphrase);
+    const now = new Date().toISOString();
+    const [row] = await this.db.update(clipboards).set({
+      content,
+      version: sql`${clipboards.version} + 1`,
+      updatedAt: now,
+    }).where(and(
+      eq(clipboards.passphraseHash, hash),
+      eq(clipboards.version, expectedVersion),
+      gt(clipboards.expiresAt, now),
+    )).returning();
+    if (!row) {
+      const current = await this.read(passphrase);
+      throw new ConflictException({
+        code: 'VERSION_CONFLICT',
+        message: 'Version conflict. Re-read, merge, then retry.',
+        details: { expectedVersion, currentVersion: current.version },
+      });
     }
     return this.publicRow(row);
   }

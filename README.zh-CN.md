@@ -9,7 +9,7 @@
 
 打开 Web 首页 `/`（或兼容路径 `/clipboard`）：输入至少 8 个字符的口令，或点击 **Generate random passphrase**。
 首次使用口令会创建临时 Context；再次输入相同口令会进入同一份内容。任何知道口令的人或 Agent
-都可以读取和追加。内容在创建 7 天后过期；再次使用相同口令会创建空白 Context。
+都可以读取、追加和修改。内容在创建 7 天后过期；再次使用相同口令会创建空白 Context。
 请优先使用随机生成的口令，避免用容易猜到的词。网页不会把口令写入 URL；离开后需重新输入。
 
 Agent 可调用以下免登录 REST 接口（请求和响应均为 JSON，同时向下兼容 `/api/v1/clipboard/*`）：
@@ -20,8 +20,10 @@ Agent 可调用以下免登录 REST 接口（请求和响应均为 JSON，同时
 | POST | `/api/v1/temporary-contexts/open` | `{"passphrase":"..."}` | 创建或进入 |
 | POST | `/api/v1/temporary-contexts/read` | `{"passphrase":"..."}` | 读取已有 Context |
 | POST | `/api/v1/temporary-contexts/append` | `{"passphrase":"...","content":"..."}` | 追加内容 |
+| POST | `/api/v1/temporary-contexts/update` | `{"passphrase":"...","content":"...","expectedVersion":1}` | 替换全部内容（允许清空） |
 
 单次追加最多 20,000 字符，整体最多 100,000 字符。口令拥有完整读写权限，服务端仅保存带密钥的摘要。
+修改时须传入读取到的版本号；版本已变化时返回 409，避免覆盖并发修改。编辑不会延长有效期。
 网络部署必须设置稳定的 `CLIPBOARD_SECRET`（至少 32 字符），并在部署新服务前运行 `0005` 迁移。
 
 ## 已实现

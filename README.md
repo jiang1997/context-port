@@ -14,7 +14,7 @@ restoration, archiving, and custom ordering are deferred. Future edits must chec
 
 Open `/` (or legacy `/clipboard`) in the Web app. Enter a passphrase of at least 8 characters, or generate
 a random one. The first use creates a temporary Context; the same passphrase opens it again.
-Anyone with the passphrase can read and append content. It expires 7 days after creation;
+Anyone with the passphrase can read, append, and edit content. It expires 7 days after creation;
 using the passphrase after expiry creates a new, empty Context. Prefer generated passphrases
 for private content. The Web app does not put passphrases in URLs.
 
@@ -22,6 +22,8 @@ Agents can call these anonymous JSON endpoints: `POST /api/v1/temporary-contexts
 `/open` and `/read` (`{"passphrase":"..."}`), and `/append`
 (`{"passphrase":"...","content":"..."}`). (Legacy `/api/v1/clipboard/*` paths remain supported as aliases).
 Each append is limited to 20,000 characters; the Context is limited to 100,000 characters.
+`POST /api/v1/temporary-contexts/update` replaces the full content with `{"passphrase":"...","content":"...","expectedVersion":1}`.
+Use the version returned by read; stale updates return 409 to prevent overwriting concurrent changes. Empty content clears the Context, and editing does not extend its expiry.
 The server stores only a keyed passphrase digest. Network deployments require a stable `CLIPBOARD_SECRET`
 of at least 32 characters and the `0005` database migration before deploying the new server.
 

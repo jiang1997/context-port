@@ -8,6 +8,11 @@ export const TemporaryContextAppendSchema = TemporaryContextAccessSchema.extend(
   content: z.string().min(1).max(20_000),
 }).strict();
 
+export const TemporaryContextUpdateSchema = TemporaryContextAccessSchema.extend({
+  content: z.string().max(100_000),
+  expectedVersion: z.number().int().positive(),
+}).strict();
+
 export const TemporaryContextSchema = z.object({
   content: z.string(),
   version: z.number().int().positive(),

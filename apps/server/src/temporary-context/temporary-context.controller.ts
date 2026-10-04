@@ -1,5 +1,5 @@
 import { Body, Controller, HttpCode, Inject, Post } from '@nestjs/common';
-import { TemporaryContextAccessSchema, TemporaryContextAppendSchema } from '@contextport/contracts';
+import { TemporaryContextAccessSchema, TemporaryContextAppendSchema, TemporaryContextUpdateSchema } from '@contextport/contracts';
 import { ZodValidationPipe } from '../common/validation/zod-validation.pipe.js';
 import { TemporaryContextService } from './temporary-context.service.js';
 
@@ -26,6 +26,12 @@ export class TemporaryContextController {
   @HttpCode(200)
   append(@Body(new ZodValidationPipe(TemporaryContextAppendSchema)) body: { passphrase: string; content: string }) {
     return this.service.append(body.passphrase, body.content);
+  }
+
+  @Post('update')
+  @HttpCode(200)
+  update(@Body(new ZodValidationPipe(TemporaryContextUpdateSchema)) body: { passphrase: string; content: string; expectedVersion: number }) {
+    return this.service.update(body.passphrase, body.content, body.expectedVersion);
   }
 }
 

@@ -64,7 +64,42 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Anonymous clipboard integration
         .where(sql`${clipboards.content} = 'Secret'`))[0]!.hash));
     await request(http).post('/api/v1/clipboard/read').send({ passphrase: created.passphrase }).expect(404);
     await request(http).post('/api/v1/clipboard/append').send({ passphrase: created.passphrase, content: 'More' }).expect(404);
+    await request(http).post('/api/v1/temporary-contexts/update').send({ passphrase: created.passphrase, content: 'Replacement', expectedVersion: 2 }).expect(404);
     const renewed = (await request(http).post('/api/v1/clipboard/open').send({ passphrase: created.passphrase }).expect(200)).body;
     expect(renewed).toMatchObject({ created: true, content: '' });
+  });
+
+  it('replaces and clears existing content without changing its expiry', async () => {
+    const http = app.getHttpServer();
+    const passphrase = 'editable-temporary-context';
+    await request(http).post('/api/v1/temporary-contexts/open').send({ passphrase }).expect(200);
+    const original = (await request(http).post('/api/v1/temporary-contexts/append').send({ passphrase, content: 'Original content' }).expect(200)).body;
+    const edited = (await request(http).post('/api/v1/temporary-contexts/update').send({
+      passphrase, content: '  Edited Markdown\n', expectedVersion: original.version,
+    }).expect(200)).body;
+    expect(edited).toMatchObject({ content: '  Edited Markdown\n', version: original.version + 1, createdAt: original.createdAt, expiresAt: original.expiresAt });
+    const cleared = (await request(http).post('/api/v1/clipboard/update').send({ passphrase, content: '', expectedVersion: edited.version }).expect(200)).body;
+    expect(cleared).toMatchObject({ content: '', version: edited.version + 1 });
+    const read = (await request(http).post('/api/v1/temporary-contexts/read').send({ passphrase }).expect(200)).body;
+    expect(read.content).toBe('');
+    await request(http).post('/api/v1/temporary-contexts/update').send({ passphrase, content: 'Missing version' }).expect(400);
+    await request(http).post('/api/v1/temporary-contexts/update').send({ passphrase, content: 'x'.repeat(100_001), expectedVersion: cleared.version }).expect(400);
+    await request(http).post('/api/v1/temporary-contexts/update').send({ passphrase: 'missing-temporary-context', content: 'Missing', expectedVersion: 1 }).expect(404);
+  });
+
+  it('rejects stale edits after append and allows only one concurrent replacement', async () => {
+    const http = app.getHttpServer();
+    const passphrase = 'concurrent-temporary-context';
+    const original = (await request(http).post('/api/v1/temporary-contexts/open').send({ passphrase }).expect(200)).body;
+    const appended = (await request(http).post('/api/v1/temporary-contexts/append').send({ passphrase, content: 'Agent addition' }).expect(200)).body;
+    await request(http).post('/api/v1/temporary-contexts/update').send({ passphrase, content: 'Stale draft', expectedVersion: original.version }).expect(409);
+    const afterConflict = (await request(http).post('/api/v1/temporary-contexts/read').send({ passphrase }).expect(200)).body;
+    expect(afterConflict).toMatchObject({ content: 'Agent addition', version: appended.version });
+    const responses = await Promise.all(['Edit A', 'Edit B'].map(content =>
+      request(http).post('/api/v1/temporary-contexts/update').send({ passphrase, content, expectedVersion: appended.version })));
+    expect(responses.map(response => response.status).sort()).toEqual([200, 409]);
+    const winner = responses.find(response => response.status === 200)!.body;
+    const final = (await request(http).post('/api/v1/temporary-contexts/read').send({ passphrase }).expect(200)).body;
+    expect(final).toMatchObject({ content: winner.content, version: appended.version + 1 });
   });
 });

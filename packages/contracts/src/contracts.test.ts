@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CreateContextSchema, CreateThreadSchema, ListContextsSchema, PassphraseSchema, UpdateContextSchema } from './index.js';
+import { CreateContextSchema, CreateThreadSchema, ListContextsSchema, PassphraseSchema, TemporaryContextUpdateSchema, UpdateContextSchema } from './index.js';
 describe('MVP document contracts', () => {
   it('accepts human and agent documents and preserves Markdown whitespace', () => {
     for (const createdByType of ['human', 'agent']) {
@@ -29,5 +29,15 @@ describe('MVP document contracts', () => {
     expect(PassphraseSchema.safeParse('a'.repeat(8)).success).toBe(true);
     expect(PassphraseSchema.safeParse('a'.repeat(128)).success).toBe(true);
     expect(PassphraseSchema.safeParse('a'.repeat(129)).success).toBe(false);
+  });
+  it('allows replacing or clearing temporary content only with a valid version', () => {
+    const base = { passphrase: 'example-passphrase', content: '', expectedVersion: 1 };
+    expect(TemporaryContextUpdateSchema.parse(base)).toEqual(base);
+    expect(TemporaryContextUpdateSchema.safeParse({ ...base, content: 'x'.repeat(100_000) }).success).toBe(true);
+    expect(TemporaryContextUpdateSchema.safeParse({ ...base, content: 'x'.repeat(100_001) }).success).toBe(false);
+    for (const expectedVersion of [undefined, 0, -1, 1.5]) {
+      expect(TemporaryContextUpdateSchema.safeParse({ ...base, expectedVersion }).success).toBe(false);
+    }
+    expect(TemporaryContextUpdateSchema.safeParse({ ...base, version: 2 }).success).toBe(false);
   });
 });
