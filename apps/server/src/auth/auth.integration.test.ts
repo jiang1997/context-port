@@ -66,7 +66,8 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Google login sessions (phase 1)
       expect(r.body.user).toBeNull();
     });
     await request(app.getHttpServer()).post('/api/v1/auth/logout')
-      .set('Cookie', 'cp_session=opaque-session-token').expect(204);
+      .set('Cookie', 'cp_session=opaque-session-token; cp_csrf=csrf-token')
+      .set('x-csrf-token', 'csrf-token').expect(204);
     await request(app.getHttpServer()).get('/api/v1/auth/me')
       .set('Cookie', 'cp_session=opaque-session-token').expect(200)
       .then(r => expect(r.body.user).toBeNull());

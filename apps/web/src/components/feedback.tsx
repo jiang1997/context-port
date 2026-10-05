@@ -55,9 +55,17 @@ export function SignedOutNotice() {
     <EmptyState
       title={t('@app.auth.signedOutTitle')}
       description={t('@app.auth.signedOutDescription')}
-      actions={<Button label={t('@app.auth.signInWithGoogle')} variant="primary" href={googleLoginUrl(location.pathname)} />}
+      actions={<Button label={t('@app.auth.signInWithGoogle')} variant="primary" href={googleLoginUrl(location.pathname + location.search + location.hash)} />}
     />
   );
+}
+
+export function LoginResultNotice() {
+  const { search } = useLocation();
+  const { t } = useI18n();
+  const result = new URLSearchParams(search).get('login');
+  if (result !== 'failed' && result !== 'denied') return null;
+  return <Banner status={result === 'denied' ? 'warning' : 'error'} title={t(result === 'denied' ? '@app.auth.loginDenied' : '@app.auth.loginFailed')} container="card" />;
 }
 
 export function ErrorNotice({ error }: { error: Error | null }) {

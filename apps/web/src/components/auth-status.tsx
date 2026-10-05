@@ -1,12 +1,14 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 import { Avatar } from '@astryxdesign/core/Avatar';
+import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
 import { Skeleton } from '@astryxdesign/core/Skeleton';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Text } from '@astryxdesign/core/Text';
 import { fetchMe, googleLoginUrl, logout, type SessionUser } from '../api/auth';
 import { useI18n } from '../i18n';
+import { ErrorNotice } from './feedback';
 
 function UserMenu({ user }: { user: SessionUser }) {
   const { t } = useI18n();
@@ -21,23 +23,33 @@ function UserMenu({ user }: { user: SessionUser }) {
         {user.name ?? user.email}
       </Text>
       <Button label={mutation.isPending ? t('@app.auth.signingOut') : t('@app.auth.signOut')} variant="ghost" size="sm" isDisabled={mutation.isPending} onClick={() => mutation.mutate()} />
+      <ErrorNotice error={mutation.error} />
     </Stack>
   );
 }
 
 export function useAuthSession() {
-  return useQuery({ queryKey: ['auth', 'me'], queryFn: fetchMe, staleTime: 60_000 });
+  return useQuery({ queryKey: ['auth', 'me'], queryFn: fetchMe, staleTime: 60_000, retry: false });
 }
 
 export function LoginButton() {
   const location = useLocation();
   const { t } = useI18n();
-  return <Button label={t('@app.auth.signIn')} variant="primary" size="sm" href={googleLoginUrl(location.pathname)} />;
+  return <Button label={t('@app.auth.signIn')} variant="primary" size="sm" href={googleLoginUrl(location.pathname + location.search + location.hash)} />;
 }
 
 export function AuthStatus() {
-  const { data, isLoading } = useAuthSession();
+  const { data, isLoading, error, refetch, isFetching } = useAuthSession();
+  const { t } = useI18n();
   if (isLoading) return <Skeleton width={108} height={28} radius="rounded" />;
   if (data?.user) return <UserMenu user={data.user} />;
+  if (error) {
+    return (
+      <Stack gap={2}>
+        <Banner status="error" title={t('@app.auth.sessionUnavailable')} container="card" />
+        <Button label={t('@app.auth.retrySession')} variant="ghost" size="sm" isDisabled={isFetching} onClick={() => void refetch()} />
+      </Stack>
+    );
+  }
   return <LoginButton />;
 }

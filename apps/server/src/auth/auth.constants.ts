@@ -21,6 +21,8 @@ export function googleAuthorizationUrl(input: { clientId: string; redirectUri: s
     redirect_uri: input.redirectUri,
     response_type: 'code',
     scope: 'openid email profile',
+    // App logout leaves Google's session active; always let the user pick an account.
+    prompt: 'select_account',
     state: input.state,
     include_granted_scopes: 'true',
   });
@@ -36,7 +38,12 @@ export function parseCookies(header: string | undefined): Record<string, string>
     if (separator < 0) continue;
     const key = part.slice(0, separator).trim();
     const value = part.slice(separator + 1).trim();
-    if (key) jar[key] = decodeURIComponent(value);
+    if (!key) continue;
+    try {
+      jar[key] = decodeURIComponent(value);
+    } catch {
+      // A malformed cookie must not break unrelated cookies or authentication.
+    }
   }
   return jar;
 }
@@ -84,6 +91,7 @@ export function generateOAuthState(): string {
 export function safeRedirectPath(value: string | undefined, fallback = '/'): string {
   if (!value) return fallback;
   if (!value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return fallback;
+  if (/[\u0000-\u001f\u007f]/.test(value)) return fallback;
   if (/[<>]/.test(value)) return fallback;
   return value;
 }

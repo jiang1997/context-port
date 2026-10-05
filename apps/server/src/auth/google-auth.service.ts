@@ -16,12 +16,6 @@ export interface GoogleIdentity {
 
 const JWKS = createRemoteJWKSet(new URL(GOOGLE_JWKS));
 
-interface TokenResponse {
-  access_token: string;
-  id_token: string;
-  expires_in: number;
-}
-
 @Injectable()
 export class GoogleAuthService {
   constructor(@Inject(DATABASE) private readonly db: Database) {}
@@ -48,6 +42,7 @@ export class GoogleAuthService {
   ): Promise<GoogleIdentity> {
     const response = await fetch(GOOGLE_TOKEN_ENDPOINT, {
       method: 'POST',
+      signal: AbortSignal.timeout(15_000),
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         code,
@@ -75,6 +70,7 @@ export class GoogleAuthService {
         issuer: GOOGLE_ISSUERS,
         audience: clientId,
         clockTolerance: 60,
+        requiredClaims: ['exp', 'iat', 'sub'],
       });
       claims = payload as Record<string, string | boolean>;
     } catch {
@@ -82,8 +78,11 @@ export class GoogleAuthService {
     }
     const sub = claims.sub;
     const email = claims.email;
-    if (typeof sub !== 'string' || typeof email !== 'string') {
+    if (typeof sub !== 'string' || !sub || typeof email !== 'string' || !email) {
       throw new UnauthorizedException({ code: 'GOOGLE_ID_TOKEN_INCOMPLETE', message: 'Google ID Token lacks required claims.' });
+    }
+    if (claims.azp !== undefined && claims.azp !== clientId) {
+      throw new UnauthorizedException({ code: 'GOOGLE_ID_TOKEN_INVALID', message: 'Google ID Token authorized party does not match.' });
     }
     if (claims.email_verified !== true) {
       throw new UnauthorizedException({ code: 'GOOGLE_EMAIL_NOT_VERIFIED', message: 'Google email is not verified.' });

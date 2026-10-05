@@ -166,7 +166,8 @@ export function KeysPage() {
             <Text type="body">{t('@app.keys.intro')}</Text>
           </Stack>
           {auth.isPending && <LoadingList rows={2} />}
-          {!auth.isPending && !auth.data?.user && <SignedOutNotice />}
+          <ErrorNotice error={auth.error} />
+          {!auth.isPending && !auth.error && !auth.data?.user && <SignedOutNotice />}
           {auth.data?.user && (
             <>
               <KeyForm pending={false} />

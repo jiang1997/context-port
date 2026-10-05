@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Inject, Req, Res } from '@nestjs/common';
+import { Controller, ForbiddenException, Get, Header, Post, Inject, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { getEnvironment, usesSecureCookies } from '../config/environment.js';
 import {
   CSRF_COOKIE,
+  CSRF_HEADER,
   OAUTH_STATE_COOKIE,
   SESSION_COOKIE,
   STATE_TTL_MS,
@@ -26,6 +27,7 @@ export class AuthController {
   /** Starts the authorization-code flow, carrying `state` and the intended redirect. */
   @Get('google/start')
   start(@Req() req: Request, @Res() res: Response): void {
+    res.setHeader('Cache-Control', 'no-store');
     if (!this.isConfigured()) {
       res.status(503).json({ code: 'AUTH_NOT_CONFIGURED', message: 'Google login is not configured.' });
       return;
@@ -34,7 +36,7 @@ export class AuthController {
     const state = generateOAuthState();
     const redirectTo = safeRedirectPath(typeof req.query.redirect === 'string' ? req.query.redirect : undefined);
     const statePayload = JSON.stringify({ state, redirectTo, issuedAt: Date.now() });
-    // state is round-tripped through a short-lived HttpOnly cookie, not the URL.
+    // The cookie binds the state returned by Google to this browser.
     res.setHeader('Set-Cookie', serializeCookie({
       name: OAUTH_STATE_COOKIE,
       value: encodeURIComponent(statePayload),
@@ -52,6 +54,7 @@ export class AuthController {
   /** Exchanges the code, verifies the ID Token, issues the app session cookie. */
   @Get('google/callback')
   async callback(@Req() req: Request, @Res() res: Response): Promise<void> {
+    res.setHeader('Cache-Control', 'no-store');
     const environment = getEnvironment();
     const secure = usesSecureCookies(environment);
     const clearState = serializeCookie({
@@ -63,26 +66,28 @@ export class AuthController {
     };
 
     const query = req.query as { code?: string; state?: string; error?: string };
-    if (query.error) return fail('/?login=denied');
+    if (query.error) return fail(query.error === 'access_denied' ? '/?login=denied' : '/?login=failed');
 
     const stored = this.readStateCookie(parseCookies(req.headers.cookie)[OAUTH_STATE_COOKIE]);
     if (!stored || typeof query.code !== 'string' || typeof query.state !== 'string'
-      || query.state !== stored.state || Date.now() - stored.issuedAt > STATE_TTL_MS) {
+      || !query.code || !query.state || query.state !== stored.state
+      || stored.issuedAt > Date.now() || Date.now() - stored.issuedAt >= STATE_TTL_MS) {
       return fail('/?login=failed');
     }
 
-    let user: Awaited<ReturnType<GoogleAuthService['authenticateWithCode']>>;
+    let session: Awaited<ReturnType<SessionService['issue']>>;
     try {
-      user = await this.google.authenticateWithCode(query.code, this.redirectUri());
+      const user = await this.google.authenticateWithCode(query.code, this.redirectUri());
+      session = await this.sessions.issue(user.id);
     } catch {
       return fail('/contexts?login=failed');
     }
 
-    const { token, expiresAt } = await this.sessions.issue(user.id);
+    const { token, expiresAt } = session;
     const maxAgeSeconds = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
     res.setHeader('Set-Cookie', [
       serializeCookie({ name: SESSION_COOKIE, value: token, maxAgeSeconds, httpOnly: true, secure }),
-      // Readable by the app so write requests can echo it; verified server-side in phase 2.
+      // Readable by the app so cookie-authenticated writes can echo it.
       serializeCookie({ name: CSRF_COOKIE, value: generateCsrfToken(), maxAgeSeconds, httpOnly: false, secure }),
       clearState,
     ]);
@@ -90,6 +95,7 @@ export class AuthController {
   }
 
   @Get('me')
+  @Header('Cache-Control', 'no-store')
   async me(@Req() req: Request): Promise<{ user: SessionUser | null; csrfToken: string | null }> {
     const cookies = parseCookies(req.headers.cookie);
     const user = await this.sessions.resolve(cookies[SESSION_COOKIE]);
@@ -99,11 +105,16 @@ export class AuthController {
 
   /** Logout revokes the server-side session and clears both cookies. */
   @Post('logout')
+  @Header('Cache-Control', 'no-store')
   async logout(@Req() req: Request, @Res() res: Response): Promise<void> {
     const environment = getEnvironment();
     const secure = usesSecureCookies(environment);
     const clear = serializeCookie({ name: OAUTH_STATE_COOKIE, value: '', maxAgeSeconds: 0, httpOnly: true, secure });
-    await this.sessions.revoke(parseCookies(req.headers.cookie)[SESSION_COOKIE]);
+    const cookies = parseCookies(req.headers.cookie);
+    if (cookies[SESSION_COOKIE] && (!cookies[CSRF_COOKIE] || req.headers[CSRF_HEADER] !== cookies[CSRF_COOKIE])) {
+      throw new ForbiddenException('CSRF token is missing or invalid.');
+    }
+    await this.sessions.revoke(cookies[SESSION_COOKIE]);
     res.setHeader('Set-Cookie', [
       serializeCookie({ name: SESSION_COOKIE, value: '', maxAgeSeconds: 0, httpOnly: true, secure }),
       serializeCookie({ name: CSRF_COOKIE, value: '', maxAgeSeconds: 0, httpOnly: false, secure }),
@@ -115,8 +126,9 @@ export class AuthController {
   private readStateCookie(value: string | undefined): { state: string; redirectTo: string; issuedAt: number } | null {
     if (!value) return null;
     try {
-      const parsed = JSON.parse(decodeURIComponent(value)) as { state?: unknown; redirectTo?: unknown; issuedAt?: unknown };
-      if (typeof parsed.state !== 'string' || typeof parsed.redirectTo !== 'string' || typeof parsed.issuedAt !== 'number') return null;
+      const parsed = JSON.parse(value) as { state?: unknown; redirectTo?: unknown; issuedAt?: unknown };
+      if (typeof parsed.state !== 'string' || !parsed.state || typeof parsed.redirectTo !== 'string'
+        || typeof parsed.issuedAt !== 'number' || !Number.isFinite(parsed.issuedAt)) return null;
       return { state: parsed.state, redirectTo: parsed.redirectTo, issuedAt: parsed.issuedAt };
     } catch {
       return null;

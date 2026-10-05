@@ -49,6 +49,10 @@ export const enCatalog = {
 
   // Authentication.
   '@app.auth.signIn': { defaultMessage: 'Sign in' },
+  '@app.auth.loginFailed': { defaultMessage: 'Sign-in failed. Please try again.' },
+  '@app.auth.sessionUnavailable': { defaultMessage: 'Unable to load sign-in status. Please retry.' },
+  '@app.auth.retrySession': { defaultMessage: 'Retry' },
+  '@app.auth.loginDenied': { defaultMessage: 'Google sign-in was cancelled. You can try again.' },
   '@app.auth.signOut': { defaultMessage: 'Sign out' },
   '@app.auth.signingOut': { defaultMessage: 'Signing out…' },
   '@app.auth.signedOutTitle': { defaultMessage: 'Not signed in' },
@@ -276,6 +280,10 @@ export const zhCNCatalog: Record<AppMessageKey, MessageEntry> = {
   '@app.meta.description': { defaultMessage: '让你和 AI 智能体共享任务背景与进展' },
 
   '@app.auth.signIn': { defaultMessage: '登录' },
+  '@app.auth.loginFailed': { defaultMessage: '登录失败，请重试。' },
+  '@app.auth.sessionUnavailable': { defaultMessage: '暂时无法获取登录状态，请重试。' },
+  '@app.auth.retrySession': { defaultMessage: '重试' },
+  '@app.auth.loginDenied': { defaultMessage: 'Google 登录已取消，可以重新登录。' },
   '@app.auth.signOut': { defaultMessage: '退出登录' },
   '@app.auth.signingOut': { defaultMessage: '正在退出…' },
   '@app.auth.signedOutTitle': { defaultMessage: '请先登录' },

@@ -14,6 +14,9 @@ describe('cookie helpers', () => {
     expect(parseCookies('a=1; b=two%20words; broken')).toEqual({ a: '1', b: 'two words' });
     expect(parseCookies(undefined)).toEqual({});
   });
+  it('ignores malformed values without losing the valid session cookie', () => {
+    expect(parseCookies('broken=%ZZ; cp_session=valid; cp_csrf=%E0%A4%A')).toEqual({ cp_session: 'valid' });
+  });
   it('serializes session cookies with the planned policy', () => {
     const cookie = serializeCookie({ name: 'cp_session', value: 'token', maxAgeSeconds: 60, httpOnly: true, secure: true });
     expect(cookie).toBe('cp_session=token; Path=/; SameSite=Lax; Max-Age=60; HttpOnly; Secure');
@@ -38,6 +41,8 @@ describe('OAuth state', () => {
     const url = new URL(googleAuthorizationUrl({ clientId: 'cid', redirectUri: 'https://x.example/cb', state: 'st' }));
     expect(url.origin).toBe('https://accounts.google.com');
     expect(url.searchParams.get('scope')).toBe('openid email profile');
+    expect(url.searchParams.get('prompt')).toBe('select_account');
+    expect(url.searchParams.has('login_hint')).toBe(false);
     expect(url.searchParams.get('response_type')).toBe('code');
     expect(url.searchParams.get('client_id')).toBe('cid');
     expect(url.searchParams.get('redirect_uri')).toBe('https://x.example/cb');
@@ -55,5 +60,7 @@ describe('redirect path validation', () => {
     expect(safeRedirectPath('/a\\b')).toBe('/');
     expect(safeRedirectPath('javascript:alert(1)')).toBe('/');
     expect(safeRedirectPath(undefined)).toBe('/');
+    expect(safeRedirectPath('/\t/evil.example')).toBe('/');
+    expect(safeRedirectPath('/\n/evil.example')).toBe('/');
   });
 });

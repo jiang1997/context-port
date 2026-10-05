@@ -45,4 +45,11 @@ describe('api client', () => {
     vi.stubGlobal('document', { cookie: 'cp_csrf=abc%2Bdef' });
     expect(readCsrfToken()).toBe('abc+def');
   });
+  it('does not crash requests when the CSRF cookie is malformed', async () => {
+    vi.stubGlobal('document', { cookie: 'cp_csrf=%ZZ' });
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ user: null }) }));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(apiRequest('/auth/me')).resolves.toEqual({ user: null });
+    expect(readCsrfToken()).toBeUndefined();
+  });
 });

@@ -13,11 +13,11 @@ export interface MeResponse {
 }
 
 export function fetchMe(): Promise<MeResponse> {
-  return apiRequest<MeResponse>('/auth/me');
+  return apiRequest<MeResponse>('/auth/me', { signal: AbortSignal.timeout(20_000) });
 }
 
 export function logout(): Promise<void> {
-  return apiRequest<void>('/auth/logout', { method: 'POST' });
+  return apiRequest<void>('/auth/logout', { method: 'POST', signal: AbortSignal.timeout(20_000) });
 }
 
 /** Login entry point; `redirect` must stay site-internal and is validated server-side. */

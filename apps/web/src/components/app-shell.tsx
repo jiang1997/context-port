@@ -5,6 +5,7 @@ import { IconButton } from '@astryxdesign/core/IconButton';
 import { Stack } from '@astryxdesign/core/Stack';
 import { TopNav, TopNavHeading, TopNavItem } from '@astryxdesign/core/TopNav';
 import { AuthStatus } from './auth-status';
+import { LoginResultNotice } from './feedback';
 import { LanguageSwitcher } from './language-switcher';
 import { SiteFooter } from './site-footer';
 import { useI18n } from '../i18n';
@@ -61,6 +62,7 @@ export function AppShellLayout({ children }: PropsWithChildren) {
           </TopNav>
         }
       >
+        <LoginResultNotice />
         {children}
       </AstryxAppShell>
       <SiteFooter />

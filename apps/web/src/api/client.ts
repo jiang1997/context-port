@@ -4,7 +4,11 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
 export function readCsrfToken(): string | undefined {
   if (typeof document === 'undefined') return undefined;
   const match = document.cookie.match(/(?:^|;\s*)cp_csrf=([^;]*)/);
-  return match?.[1] ? decodeURIComponent(match[1]) : undefined;
+  try {
+    return match?.[1] ? decodeURIComponent(match[1]) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
