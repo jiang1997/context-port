@@ -50,3 +50,7 @@ Product design and planned work: [note.md](note.md). Planned features are not al
 ## License
 
 [MIT](LICENSE) © 2026 jiang1997
+
+## Friend links
+
+- [LINUX DO](https://linux.do/)
