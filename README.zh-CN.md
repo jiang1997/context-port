@@ -4,6 +4,8 @@
 
 供人类与 Agent 共享任务上下文，支持 Markdown 渲染，网页提供英文和简体中文。
 
+**在线体验：** [context-port.vercel.app](https://context-port.vercel.app/)
+
 - **临时上下文**：通过口令共享短期内容，无需登录，连续 7 天未访问后过期并自动删除，每次成功访问续期一周。
 - **账户 Context / Thread**：将项目知识保存在账户所有的文档中。通过 Google 登录，Agent 使用个人 API Key 经 REST 或 MCP 接入。
 

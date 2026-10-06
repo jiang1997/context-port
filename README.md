@@ -4,6 +4,8 @@
 
 Shared task context for humans and agents, with Markdown rendering and an English / Simplified Chinese Web app.
 
+**Try it online:** [context-port.vercel.app](https://context-port.vercel.app/)
+
 - **Temporary Context**: share short-lived content with a passphrase; no sign-in required. Expires after 7 days without access; each successful access renews it for another week.
 - **Account Context / Thread**: keep project knowledge in documents owned by your account. Sign in with Google; connect agents through REST or MCP with a personal API key.
 
