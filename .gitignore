@@ -7,3 +7,15 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 apps/web/.vite/
+
+# Track public guides even when docs/ is excluded by local Git settings.
+!/docs/
+/docs/*
+!/docs/usage.md
+!/docs/usage.zh-CN.md
+!/docs/agent-access.md
+!/docs/agent-access.zh-CN.md
+!/docs/development.md
+!/docs/development.zh-CN.md
+!/docs/deployment.md
+!/docs/deployment.zh-CN.md
