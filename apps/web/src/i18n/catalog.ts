@@ -131,7 +131,7 @@ export const enCatalog = {
   '@app.temp.title': { defaultMessage: 'Temporary Context' },
   '@app.temp.intro': {
     defaultMessage:
-      'A temporary, login-free workspace to share task context with people or AI agents. Automatically expires in 7 days.',
+      'A temporary, login-free workspace to share task context with people or AI agents. Expires after 7 days without access; each successful access renews it for another week.',
   },
   '@app.temp.tabAgents': { defaultMessage: 'For Agents' },
   '@app.temp.tabHumans': { defaultMessage: 'For Humans' },
@@ -215,7 +215,7 @@ export const enCatalog = {
       '- `append` concatenates with a blank-line separator. There is no delete/edit API; to "modify", read first then append the correction.',
   },
   '@app.agent.guide.intro': {
-    defaultMessage: 'Temporary Context lets any person or agent share short-lived text without login. It expires 7 days after creation.',
+    defaultMessage: 'Temporary Context lets any person or agent share short-lived text without login. It expires after 7 days without access; each successful access renews it for another week.',
   },
   '@app.agent.guide.apiBase': { defaultMessage: 'API base: {apiBase}' },
   '@app.agent.guide.step1': {
@@ -356,7 +356,7 @@ export const zhCNCatalog: Record<AppMessageKey, MessageEntry> = {
 
   '@app.temp.title': { defaultMessage: '临时上下文' },
   '@app.temp.intro': {
-    defaultMessage: '无需登录，用一份临时上下文与他人或 AI 智能体共享任务信息。内容在创建 7 天后自动过期。',
+    defaultMessage: '无需登录，用一份临时上下文与他人或 AI 智能体共享任务信息。连续 7 天未访问后自动过期并删除，每次成功访问续期一周。',
   },
   '@app.temp.tabAgents': { defaultMessage: '智能体接入' },
   '@app.temp.tabHumans': { defaultMessage: '手动使用' },
@@ -437,7 +437,7 @@ export const zhCNCatalog: Record<AppMessageKey, MessageEntry> = {
       '- `append` 会将新内容添加到末尾，与已有内容之间以空行分隔。不支持删除或直接编辑；需要更正时，请先读取已有内容，再追加更正说明。',
   },
   '@app.agent.guide.intro': {
-    defaultMessage: '临时上下文用于与用户或其他智能体共享任务信息，无需登录，内容在创建 7 天后过期。',
+    defaultMessage: '临时上下文用于与用户或其他智能体共享任务信息，无需登录，连续 7 天未访问后过期并自动删除，每次成功访问续期一周。',
   },
   '@app.agent.guide.apiBase': { defaultMessage: 'API 地址：{apiBase}' },
   '@app.agent.guide.step1': { defaultMessage: '1. 创建临时上下文（由服务器生成随机访问口令）：' },

@@ -4,7 +4,7 @@
 
 Shared task context for humans and agents, with Markdown rendering and an English / Simplified Chinese Web app.
 
-- **Temporary Context**: share short-lived content with a passphrase; no sign-in required. Expires after 7 days.
+- **Temporary Context**: share short-lived content with a passphrase; no sign-in required. Expires after 7 days without access; each successful access renews it for another week.
 - **Account Context / Thread**: keep project knowledge in documents owned by your account. Sign in with Google; connect agents through REST or MCP with a personal API key.
 
 Threads are focused documents, not chat messages. Account documents do not expire automatically.

@@ -80,7 +80,7 @@ describe('Temporary Context Agent Instructions & Guide', () => {
     );
 
     const guide = buildTemporaryContextAgentGuide(apiBase, 'zh-CN');
-    expect(guide).toContain('临时上下文用于与用户或其他智能体共享任务信息，无需登录，内容在创建 7 天后过期。');
+    expect(guide).toContain('临时上下文用于与用户或其他智能体共享任务信息，无需登录，连续 7 天未访问后过期并自动删除，每次成功访问续期一周。');
     expect(guide).toContain('curl -s -X POST "https://api.example.com/api/v1/temporary-contexts/generate"');
     // The literal JSON brace examples must survive interpolation untouched.
     expect(guide).toContain('{ passphrase, content, version, expiresAt }');

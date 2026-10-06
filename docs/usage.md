@@ -7,7 +7,7 @@
 | | Temporary Context | Account Context / Thread |
 | --- | --- | --- |
 | Access | Passphrase; no sign-in or API key | Google browser session or personal API key |
-| Lifetime | Expires 7 days after creation | No automatic expiry |
+| Lifetime | Expires after 7 days without access | No automatic expiry |
 | Web | Read, append, edit, and clear content | List, create, and read documents |
 | Agent access | REST | REST and MCP |
 | Editing | Web and REST; version checked | REST and MCP; version checked |
@@ -30,8 +30,12 @@ The first use creates a Temporary Context; the same passphrase opens it again.
 
 Anyone with the passphrase can read and modify the content. Prefer a generated
 passphrase and keep it safe: leaving the Context requires entering it again, and
-passphrases are not put in URLs. Content expires 7 days after creation; appending
-or editing does not extend that deadline. Opening an expired passphrase creates a
+passphrases are not put in URLs. Content expires after 7 days without access. Successful opens, reads, appends,
+and edits renew the deadline to 7 days from that access, including webpage polling.
+Reading only renews the deadline; it does not change the content version or edit timestamp.
+Expired records are deleted at server startup and every 24 hours while the server runs,
+and when a Context is opened. If the server is asleep or offline, deletion resumes
+when it starts; expired content remains inaccessible. Opening an expired passphrase creates a
 new, empty Context; reading or modifying an expired Context returns `404`.
 
 ## Current limits
