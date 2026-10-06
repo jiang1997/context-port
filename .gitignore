@@ -19,3 +19,5 @@ apps/web/.vite/
 !/docs/development.zh-CN.md
 !/docs/deployment.md
 !/docs/deployment.zh-CN.md
+
+e2e-artifacts/

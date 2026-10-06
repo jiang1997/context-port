@@ -54,4 +54,35 @@ TEST_DATABASE_URL=postgresql://contextport:contextport@localhost:5432/contextpor
 务必使用可丢弃的测试库，不要指向开发业务库或生产库。
 GitHub CI 会启动 PostgreSQL 并设置 `TEST_DATABASE_URL`，因此会运行数据库集成测试。
 
+## 端到端测试
+
+安装依赖后，首次运行需安装浏览器：
+
+```bash
+pnpm exec playwright install chromium
+```
+
+通过一个命令运行 Chromium 浏览器测试：
+
+```bash
+pnpm test:e2e
+```
+
+命令会在端口 `55432` 启动独立、可丢弃的 PostgreSQL 容器，等待数据库就绪并执行迁移，
+再通过 `pnpm dev` 启动真实前后端。结束后自动移除数据库容器。运行前停止已有开发服务，
+确保端口 `3000` 和 `5173` 可用。无需 `.env` 或 Google 凭证，测试配置会覆盖本地配置。
+
+测试从网页创建临时上下文，追加和编辑 Markdown，再刷新、重新打开，验证内容持久化。
+每次运行使用服务端生成的独立口令，API 请求真实经过前端代理。
+
+CI 在独立 job 中使用自己的 PostgreSQL 服务运行测试。若已有可丢弃的测试数据库，
+可设置 `E2E_DATABASE_URL`，跳过 Docker 启动和清理；命令会向该库执行迁移并写入测试数据。
+
+失败截图、trace、HTML 报告及前后端日志保存在 `e2e-artifacts/`，CI 失败时自动上传。
+查看本地报告：
+
+```bash
+pnpm exec playwright show-report e2e-artifacts/report
+```
+
 继续阅读：[部署](deployment.zh-CN.md) · [Agent 接入](agent-access.zh-CN.md)
