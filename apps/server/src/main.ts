@@ -5,7 +5,8 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module.js';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { requestIdMiddleware } from './common/middleware/request-id.middleware.js';
-import { getEnvironment, getAllowedOrigins } from './config/environment.js';
+import { getEnvironment } from './config/environment.js';
+import { createCorsOptions } from './config/cors.js';
 
 async function bootstrap() {
   const environment = getEnvironment();
@@ -16,11 +17,7 @@ async function bootstrap() {
   app.useBodyParser('json', { limit: '1mb' });
   app.use(requestIdMiddleware);
   app.useGlobalFilters(new HttpExceptionFilter());
-  app.enableCors({
-    origin: getAllowedOrigins(environment),
-    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
-    allowedHeaders: ['authorization', 'content-type', 'x-csrf-token', 'x-request-id'],
-  });
+  app.enableCors(createCorsOptions(environment));
   app.enableShutdownHooks();
 
   await app.listen(environment.PORT, environment.HOST);

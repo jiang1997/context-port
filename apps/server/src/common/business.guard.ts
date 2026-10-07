@@ -5,10 +5,10 @@ import { identity, type AuthIdentity } from '../auth/auth-identity.js';
 import { CSRF_COOKIE, CSRF_HEADER, SESSION_COOKIE, parseCookies } from '../auth/auth.constants.js';
 import { SessionService } from '../auth/session.service.js';
 import { ApiKeyService, API_KEY_PREFIX } from '../auth/api-keys.service.js';
+import { isTemporaryContextPath } from '../temporary-context/temporary-context.paths.js';
 
 /** Browser session endpoints manage their own cookies and must stay public. */
 const PUBLIC_PATH_PREFIXES = ['/health/', '/api/v1/auth/'];
-const TEMPORARY_CONTEXT_PATHS = ['/api/v1/temporary-contexts/', '/api/v1/clipboard/'];
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const clipboardRequests = new Map<string, { count: number; resetAt: number }>();
 
@@ -22,9 +22,7 @@ export class BusinessGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
     if (PUBLIC_PATH_PREFIXES.some(prefix => req.path.startsWith(prefix))) return true;
-    const env = getEnvironment();
-    if (req.headers.origin && !getAllowedOrigins(env).includes(req.headers.origin)) throw new ForbiddenException('Origin is not allowed.');
-    if (TEMPORARY_CONTEXT_PATHS.some(prefix => req.path.startsWith(prefix))) {
+    if (isTemporaryContextPath(req.path)) {
       const now = Date.now();
       const ip = req.ip ?? req.socket?.remoteAddress ?? 'unknown';
       const current = clipboardRequests.get(ip);
@@ -35,6 +33,9 @@ export class BusinessGuard implements CanActivate {
       if (clipboardRequests.size > 10_000) for (const [key, value] of clipboardRequests) if (value.resetAt <= now) clipboardRequests.delete(key);
       return true;
     }
+
+    const env = getEnvironment();
+    if (req.headers.origin && !getAllowedOrigins(env).includes(req.headers.origin)) throw new ForbiddenException('Origin is not allowed.');
 
     const identity = await this.resolveIdentity(req);
     if (!identity) throw new UnauthorizedException();

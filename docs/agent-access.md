@@ -8,6 +8,10 @@ These JSON endpoints require a passphrase, except generation; they do not requir
 Google login or an API key. The API base is `/api/v1`. Legacy `/api/v1/clipboard/*`
 paths remain supported. Temporary Contexts are not exposed as MCP tools.
 
+Temporary Context endpoints, including legacy paths, allow cross-origin requests
+from any origin without login cookies. Passphrase access and the limit of 60
+requests per IP per minute still apply; other endpoints retain their origin allowlist.
+
 | Method | Path | JSON body | Result |
 | --- | --- | --- | --- |
 | POST | `/temporary-contexts/generate` | None | Generate a passphrase and create a Context |

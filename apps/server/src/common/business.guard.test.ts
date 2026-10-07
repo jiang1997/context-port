@@ -57,8 +57,15 @@ describe('REST/MCP identity protection', () => {
     await expect(guard().canActivate(request('/api/v1/clipboard/open', {}, '127.0.0.1', 'POST'))).resolves.toBe(true);
     await expect(guard().canActivate(request('/api/v1/clipboard/read', {}, '127.0.0.1', 'POST'))).resolves.toBe(true);
     await expect(guard().canActivate(request('/api/v1/contexts', {}, '127.0.0.1', 'POST'))).rejects.toThrow(UnauthorizedException);
-    await expect(guard().canActivate(request('/api/v1/temporary-contexts/open', { origin: 'https://untrusted.example' }, '127.0.0.1', 'POST'))).rejects.toThrow(ForbiddenException);
-    await expect(guard().canActivate(request('/api/v1/clipboard/open', { origin: 'https://untrusted.example' }, '127.0.0.1', 'POST'))).rejects.toThrow(ForbiddenException);
+    await expect(guard().canActivate(request('/api/v1/temporary-contexts/open', { origin: 'https://untrusted.example' }, '127.0.0.1', 'POST'))).resolves.toBe(true);
+    await expect(guard().canActivate(request('/api/v1/clipboard/open', { origin: 'https://untrusted.example' }, '127.0.0.1', 'POST'))).resolves.toBe(true);
+  });
+  it('keeps rate limiting temporary contexts from foreign origins', async () => {
+    const context = request('/api/v1/clipboard/read', { origin: 'https://untrusted.example' }, '127.0.0.1', 'POST');
+    context.switchToHttp().getRequest().ip = 'temporary-context-rate-limit-test';
+    const instance = guard();
+    for (let i = 0; i < 60; i++) await expect(instance.canActivate(context)).resolves.toBe(true);
+    await expect(instance.canActivate(context)).rejects.toThrow('Too many temporary context requests.');
   });
   it('resolves personal API keys to their owning user', async () => {
     apiKeys.resolve.mockResolvedValue('user-uuid');
