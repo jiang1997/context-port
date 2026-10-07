@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Banner } from '@astryxdesign/core/Banner';
 import { Button } from '@astryxdesign/core/Button';
@@ -28,22 +27,6 @@ export function LoadingList({ rows = 3 }: { rows?: number }) {
           <AstryxSkeleton width="100%" height={16} index={index + 1} />
         </Stack>
       ))}
-    </Stack>
-  );
-}
-
-export function Notice({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
-  // EmptyState only takes a string description, so rich children (lists,
-  // links, markup) render below the empty state instead of being dropped.
-  const description = typeof children === 'string' ? children : null;
-  return (
-    <Stack gap={2}>
-      <EmptyState
-        title={title}
-        {...(description != null ? { description } : {})}
-        actions={action}
-      />
-      {typeof children === 'string' ? null : children}
     </Stack>
   );
 }

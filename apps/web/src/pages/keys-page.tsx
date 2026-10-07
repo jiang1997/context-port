@@ -185,7 +185,9 @@ export function KeysPage() {
                         <Heading level={2}>{key.name}</Heading>
                         <Text type="supporting">
                           {t('@app.keys.created', { date: formatDateTime(key.createdAt, locale) })} ·{' '}
-                          {t('@app.keys.lastUsed', { date: key.lastUsedAt ? formatDateTime(key.lastUsedAt, locale) : t('@app.keys.never') })}
+                          {key.lastUsedAt
+                            ? t('@app.keys.lastUsed', { date: formatDateTime(key.lastUsedAt, locale) })
+                            : t('@app.keys.never')}
                         </Text>
                       </Stack>
                       <Button label={t('@app.keys.revoke')} variant="ghost" size="sm" isLoading={revoke.isPending && revoke.variables === key.id} onClick={() => revoke.mutate(key.id)} />

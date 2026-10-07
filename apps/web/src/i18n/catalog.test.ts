@@ -12,7 +12,7 @@ describe('translate', () => {
   });
 
   it('interpolates named values', () => {
-    expect(translate('en', '@app.common.metaVersion', { author: 'Ada', version: 3 })).toBe('Ada · v3');
+    expect(translate('en', '@app.common.metaVersion', { author: 'Ada', version: 3 })).toBe('Ada · version 3');
   });
 
   it('leaves unknown placeholders untouched', () => {

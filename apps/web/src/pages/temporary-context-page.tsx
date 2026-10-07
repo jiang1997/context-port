@@ -237,6 +237,7 @@ export function TemporaryContextPage() {
           <Stack gap={2}>
             <Heading level={1}>{t('@app.temp.title')}</Heading>
             <Text type="body">{t('@app.temp.intro')}</Text>
+            <Text type="supporting">{t('@app.temp.retention')}</Text>
           </Stack>
           <TabList value={activeTab} onChange={val => setActiveTab(val as 'agent' | 'human')} hasDivider role="tablist">
             <Tab value="agent" label={t('@app.temp.tabAgents')} />

@@ -18,13 +18,13 @@ access. Temporary Contexts are separate from account documents and have no Threa
 
 ## Quick start in the Web app
 
-Open the app's home page `/` (legacy `/clipboard` also works) and choose **For Humans**.
-Enter a passphrase of 8–128 characters or choose **Generate random passphrase**.
+Open the app's home page `/` (legacy `/clipboard` also works) and choose **Use manually**.
+Enter a passphrase of 8–128 characters or choose **Create with a random passphrase**.
 The first use creates a Temporary Context; the same passphrase opens it again.
 
 - **Copy passphrase** copies only the access passphrase.
 - **Copy Prompt** copies instructions with the passphrase and REST commands for an
-  agent to read and append content. **For Agents** also offers a prompt to get started.
+  agent to read and append content. **Connect an agent** also offers a prompt to get started.
 - **Add content** appends text; **Edit content** replaces the existing text, with
   **Save changes** and **Cancel editing**. Saving an empty document clears it.
 

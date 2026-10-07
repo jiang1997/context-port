@@ -73,7 +73,7 @@ describe('Temporary Context Agent Instructions & Guide', () => {
 
   it('localises the prose for Chinese while keeping curl commands intact', () => {
     const instructions = buildTemporaryContextAgentInstructions('secret-passphrase-123', apiBase, undefined, 'zh-CN');
-    expect(instructions).toContain('你可以使用以下口令访问这份临时上下文，与用户共享任务信息。');
+    expect(instructions).toContain('你可以通过口令访问这份临时上下文。');
     expect(instructions).toContain('访问口令：secret-passphrase-123');
     expect(instructions).toContain(
       'curl -s -X POST "https://api.example.com/api/v1/temporary-contexts/read"',
