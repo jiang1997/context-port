@@ -4,7 +4,13 @@
 
 仓库提供网页的 [Vercel 配置](../vercel.json) 和服务端的 [Render Blueprint](../render.yaml)。
 在平台配置 Git 连接与正式分支，本仓库使用 `main`。开启 Git 部署后，Vercel 部署正式
-分支；Render 配置为等待 CI 检查通过后部署。测试新功能前，确认前后端部署均已完成。
+分支；Render 配置为等待 CI 检查通过后部署。要限制 Vercel 正式发布，在项目的
+Settings → Deployment Checks → Add Checks 中选择 GitHub，添加
+`Vercel - context-port: verify` 和 `Vercel - context-port: e2e` 两项必需检查，
+并保持 Production 的 Automatic aliasing 开启。CI 会在 push 时分别上报两个 job
+的 pending 和最终 success/failure 状态；先运行一次更新后的 workflow，再搜索这些
+名称。Vercel 可以并行构建，但只有两项状态都成功后才更新正式域名，无需新增 Vercel
+部署令牌。测试新功能前，确认前后端部署均已完成。
 
 Vercel 的 `VITE_API_BASE_URL` 保持 `/api/v1`，`/api/*` 转发目标是 Render 服务端；
 使用其他服务端时需修改目标地址。Render 配置 `DATABASE_URL`、`WEB_ORIGIN`，并为网络
