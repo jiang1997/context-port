@@ -362,9 +362,9 @@ export const zhCNCatalog: Record<AppMessageKey, MessageEntry> = {
 
   '@app.temp.title': { defaultMessage: '临时上下文' },
   '@app.temp.intro': {
-    defaultMessage: '不用登录，凭口令就能和他人或智能体共用一份内容。',
+    defaultMessage: '无需登录, 凭口令即可与他人或智能体分享文本',
   },
-  '@app.temp.retention': { defaultMessage: '连续 7 天未访问会自动删除；每次成功访问后，再保留 7 天。' },
+  '@app.temp.retention': { defaultMessage: '连续 7 天无访问会自动删除' },
   '@app.temp.tabAgents': { defaultMessage: '智能体接入' },
   '@app.temp.tabHumans': { defaultMessage: '手动使用' },
   '@app.temp.openHeading': { defaultMessage: '打开或创建临时上下文' },
@@ -413,7 +413,7 @@ export const zhCNCatalog: Record<AppMessageKey, MessageEntry> = {
   '@app.temp.copiedPassphrase': { defaultMessage: '口令已复制' },
   '@app.temp.guideHeading': { defaultMessage: '智能体提示词' },
   '@app.temp.guideIntro': {
-    defaultMessage: '把提示词复制给智能体，它就能创建或打开临时上下文，无需登录。',
+    defaultMessage: '复制提示词给智能体, 让它去创建或读取临时上下文',
   },
   '@app.temp.guideGenerate': { defaultMessage: '生成：' },
   '@app.temp.guideOpen': { defaultMessage: '打开：' },
