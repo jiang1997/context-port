@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { TemporaryContext } from '@contextport/contracts';
 import { Button } from '@astryxdesign/core/Button';
 import { Card } from '@astryxdesign/core/Card';
@@ -16,6 +17,7 @@ import { copyTextToClipboard } from '../components/copy-context-id';
 import { ErrorNotice, Skeleton } from '../components/feedback';
 import { MarkdownContent } from '../components/markdown-content';
 import { translate, useI18n, type AppLocale, type AppMessageKey } from '../i18n';
+import { buildTemporaryContextShareUrl, readTemporaryContextPassphrase, temporaryContextHash } from '../lib/temporary-context-url';
 
 type GeneratedTemporaryContext = TemporaryContext & { passphrase: string };
 
@@ -117,18 +119,31 @@ export const buildClipboardAgentGuide = buildTemporaryContextAgentGuide;
 export function TemporaryContextPage() {
   const { t, locale } = useI18n();
   const queryClient = useQueryClient();
-  const [entry, setEntry] = useState('');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const linkPassphrase = readTemporaryContextPassphrase(location.hash);
+  const linkError = linkPassphrase === null ? null
+    : linkPassphrase.length < 8 ? t('@app.temp.passphraseMin')
+    : linkPassphrase.length > 128 ? t('@app.temp.passphraseMax') : null;
+  const passphrase = linkError ? '' : linkPassphrase ?? '';
+  const [entry, setEntry] = useState(passphrase);
   const [entryError, setEntryError] = useState<string | null>(null);
-  const [passphrase, setPassphrase] = useState('');
   const [addition, setAddition] = useState('');
   const [additionError, setAdditionError] = useState<string | null>(null);
   const [edit, setEdit] = useState<{ content: string; version: number } | null>(null);
   const [copied, setCopied] = useState(false);
   const [copiedForAgent, setCopiedForAgent] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [linkCopyFailed, setLinkCopyFailed] = useState(false);
   const [copiedGuide, setCopiedGuide] = useState(false);
-  const [guidePassphrase, setGuidePassphrase] = useState('');
+  const [guidePassphrase, setGuidePassphrase] = useState(passphrase);
   const [guideError, setGuideError] = useState<AppMessageKey | null>(null);
-  const [activeTab, setActiveTab] = useState<'agent' | 'human'>('agent');
+  const [activeTab, setActiveTab] = useState<'agent' | 'human'>(linkPassphrase === null ? 'agent' : 'human');
+  const shareUrl = passphrase ? buildTemporaryContextShareUrl(window.location.href, passphrase) : '';
+
+  function setUrlPassphrase(value: string | null) {
+    void navigate({ pathname: location.pathname, search: location.search, hash: temporaryContextHash(location.hash, value) });
+  }
   useEffect(() => {
     if (!copiedGuide) return;
     const timer = window.setTimeout(() => setCopiedGuide(false), 2000);
@@ -144,15 +159,16 @@ export function TemporaryContextPage() {
     queryKey: ['temporary-context', passphrase],
     queryFn: () => apiRequest<TemporaryContext>('/temporary-contexts/read', { method: 'POST', body: JSON.stringify({ passphrase }) }),
     enabled: Boolean(passphrase),
-    refetchInterval: 5000,
+    retry: false,
+    refetchInterval: query => query.state.error instanceof ApiError && query.state.error.status === 404 ? false : 5000,
   });
   const open = useMutation({
     mutationFn: (value: string) => apiRequest<TemporaryContext>('/temporary-contexts/open', { method: 'POST', body: JSON.stringify({ passphrase: value }) }),
-    onSuccess: (_data, value) => { setPassphrase(value); prefillGuide(value); setCopied(false); setCopiedForAgent(false); },
+    onSuccess: (_data, value) => { setUrlPassphrase(value); },
   });
   const generate = useMutation({
     mutationFn: () => apiRequest<GeneratedTemporaryContext>('/temporary-contexts/generate', { method: 'POST' }),
-    onSuccess: data => { setEntry(data.passphrase); setEntryError(null); setPassphrase(data.passphrase); prefillGuide(data.passphrase); setCopied(false); setCopiedForAgent(false); },
+    onSuccess: data => { setUrlPassphrase(data.passphrase); },
   });
   const append = useMutation({
     mutationFn: (content: string) => apiRequest<TemporaryContext>('/temporary-contexts/append', {
@@ -173,6 +189,37 @@ export function TemporaryContextPage() {
   });
   const editConflict = (update.error instanceof ApiError && update.error.status === 409)
     || (edit !== null && read.data !== undefined && edit.version !== read.data.version);
+
+  // The URL is the credential source for refreshes, shared links, and history navigation.
+  useEffect(() => {
+    if (linkPassphrase !== null) setActiveTab('human');
+    setEntry(passphrase);
+    setEntryError(null);
+    prefillGuide(passphrase);
+    setAddition('');
+    setAdditionError(null);
+    setEdit(null);
+    open.reset();
+    generate.reset();
+    update.reset();
+    append.reset();
+    setCopied(false);
+    setCopiedForAgent(false);
+    setCopiedLink(false);
+    setLinkCopyFailed(false);
+  }, [location.hash]);
+
+  useEffect(() => {
+    if (!copiedLink) return;
+    const timer = window.setTimeout(() => setCopiedLink(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [copiedLink]);
+
+  async function copyLink() {
+    const ok = await copyTextToClipboard(shareUrl);
+    setCopiedLink(ok);
+    setLinkCopyFailed(!ok);
+  }
 
   function startEditing() {
     if (!read.data) return;
@@ -257,7 +304,7 @@ export function TemporaryContextPage() {
                         isRequired
                         placeholder={t('@app.temp.passphrasePlaceholder')}
                         autoComplete="off"
-                        {...(entryError ? { status: { type: 'error' as const, message: entryError } } : {})}
+                        {...(entryError || linkError ? { status: { type: 'error' as const, message: (entryError || linkError)! } } : {})}
                       />
                       <Stack direction="horizontal" gap={3} wrap="wrap">
                         <Button label={t('@app.temp.enter')} variant="primary" type="submit" isLoading={open.isPending} />
@@ -279,6 +326,11 @@ export function TemporaryContextPage() {
                       <Button label={copied ? t('@app.temp.copiedPassphrase') : t('@app.temp.copyPassphrase')} variant="secondary" size="sm" onClick={() => void copyPassphrase()} tooltip={t('@app.temp.copyPassphraseTooltip')} />
                       <Button label={copiedForAgent ? t('@app.temp.copiedForAgent') : t('@app.temp.copyForAgent')} variant="secondary" size="sm" onClick={() => void copyForAgent()} tooltip={t('@app.temp.copyForAgentTooltip')} />
                     </Stack>
+                    <TextInput label={t('@app.temp.shareLink')} value={shareUrl} isReadOnly />
+                    <div>
+                      <Button label={copiedLink ? t('@app.temp.copiedLink') : t('@app.temp.copyLink')} variant="primary" size="sm" onClick={() => void copyLink()} />
+                    </div>
+                    {linkCopyFailed && <Text type="supporting" role="alert">{t('@app.temp.copyLinkFailed')}</Text>}
                     <Text type="supporting">{t('@app.temp.keepSafe')}</Text>
                     <div>
                       <Button
@@ -286,12 +338,20 @@ export function TemporaryContextPage() {
                         variant="ghost"
                         size="sm"
                         isDisabled={update.isPending || append.isPending}
-                        onClick={() => { setPassphrase(''); prefillGuide(''); setEntry(''); setAddition(''); setAdditionError(null); setEdit(null); update.reset(); append.reset(); setCopied(false); setCopiedForAgent(false); }}
+                        onClick={() => setUrlPassphrase(null)}
                       />
                     </div>
                   </Stack>
                 </Card>
-                <ErrorNotice error={read.error} />
+                {read.error instanceof ApiError && read.error.status === 404 ? (
+                  <Card>
+                    <Stack gap={2}>
+                      <Heading level={2}>{t('@app.temp.linkUnavailable')}</Heading>
+                      <Text type="body">{t('@app.temp.linkUnavailableHint')}</Text>
+                    </Stack>
+                  </Card>
+                ) : <ErrorNotice error={read.error} />}
+                {read.error && <div><Button label={t('@app.temp.retryRead')} variant="secondary" isLoading={read.isFetching} onClick={() => void read.refetch()} /></div>}
                 {read.isPending && <Skeleton lines={4} />}
                 {read.data && !read.error && (
                   <>
