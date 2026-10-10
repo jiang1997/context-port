@@ -54,21 +54,75 @@ test('temporary content survives edits, reloads, and reopening', async ({ page, 
   await expect(page.getByRole('heading', { name: 'Updated background', exact: true })).toBeVisible();
   await expect(page.getByText('Saved revision', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: 'Close this context', exact: true }).click();
-  await expect(page).toHaveURL('http://localhost:5173/');
-  await expect(page.getByRole('textbox', { name: /^Passphrase\b/ })).toHaveValue('');
+  const entry = page.getByRole('textbox', { name: /^Passphrase\b/ });
+  await expect(entry).toHaveValue(passphrase);
+  await expect(page.getByRole('button', { name: 'Close this context', exact: true })).toHaveCount(0);
+  const nextPassphrase = `next-${Date.now()}`;
+  await entry.fill(nextPassphrase);
+  await expect(page).toHaveURL(shareUrl);
+  await expect(page.getByRole('textbox', { name: 'Access link', exact: true })).toHaveValue(shareUrl);
+  await expect(page.getByText('Saved revision', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Open with passphrase', exact: true }).click();
+  await expect(page).toHaveURL(`http://localhost:5173/#passphrase=${nextPassphrase}`);
+  await expect(page.getByText('No content yet.', { exact: false })).toBeVisible();
+  await expect(page.getByText('Saved revision', { exact: true })).toHaveCount(0);
 
   await page.goBack();
   await expect(page.getByText('Saved revision', { exact: true })).toBeVisible();
   await expect(page).toHaveURL(shareUrl);
+  await expect(entry).toHaveValue(passphrase);
   await page.goForward();
-  await expect(page.getByRole('textbox', { name: /^Passphrase\b/ })).toHaveValue('');
+  await expect(entry).toHaveValue(nextPassphrase);
 
   // A fresh page also verifies persistence independently of React Query's cache.
   const returning = await context.newPage();
   await returning.goto(shareUrl);
   await expect(returning.getByRole('heading', { name: 'Updated background', exact: true })).toBeVisible();
   await expect(returning.getByText('Saved revision', { exact: true })).toBeVisible();
+});
+
+test('switching protects unsaved content and keeps the current context on failure', async ({ page }) => {
+  await page.goto('/');
+  const first = `draft-${Date.now()}`;
+  await reopen(page, first);
+  const originalUrl = page.url();
+  const addition = page.getByRole('textbox', { name: /^Content to add\b/ });
+  const entry = page.getByRole('textbox', { name: /^Passphrase\b/ });
+  const enter = page.getByRole('button', { name: 'Open with passphrase', exact: true });
+  await addition.fill('Unsaved addition');
+  await entry.fill(`other-${Date.now()}`);
+  page.once('dialog', dialog => dialog.dismiss());
+  await enter.click();
+  await expect(addition).toHaveValue('Unsaved addition');
+  await expect(page).toHaveURL(originalUrl);
+  page.once('dialog', dialog => dialog.dismiss());
+  await page.getByRole('button', { name: 'Create with a random passphrase', exact: true }).click();
+  await expect(page).toHaveURL(originalUrl);
+  await expect(addition).toHaveValue('Unsaved addition');
+
+  await page.route('**/temporary-contexts/open', route => route.fulfill({ status: 503, json: { message: 'Temporarily unavailable' } }));
+  page.once('dialog', dialog => dialog.accept());
+  await enter.click();
+  await expect(page.getByText('API request failed with status 503', { exact: true })).toBeVisible();
+  await expect(page).toHaveURL(originalUrl);
+  await expect(addition).toHaveValue('Unsaved addition');
+  await expect(page.getByRole('textbox', { name: 'Access link', exact: true })).toHaveValue(originalUrl);
+  await page.unroute('**/temporary-contexts/open');
+
+  // Editing has the same discard protection as an addition.
+  await addition.fill('');
+  await page.getByRole('button', { name: 'Edit content', exact: true }).click();
+  const editor = page.getByRole('textbox', { name: /^Edit content\b/ });
+  await editor.fill('Unsaved edit');
+  page.once('dialog', dialog => dialog.dismiss());
+  await enter.click();
+  await expect(editor).toHaveValue('Unsaved edit');
+  await expect(page).toHaveURL(originalUrl);
+  page.once('dialog', dialog => dialog.accept());
+  await enter.click();
+  await expect(page).not.toHaveURL(originalUrl);
+  await expect(editor).toHaveCount(0);
+  await expect(addition).toHaveValue('');
 });
 
 test('manual entry preserves special characters in share links and supports the legacy route', async ({ page, context }) => {

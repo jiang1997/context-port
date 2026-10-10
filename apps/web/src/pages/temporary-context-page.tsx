@@ -164,11 +164,18 @@ export function TemporaryContextPage() {
   });
   const open = useMutation({
     mutationFn: (value: string) => apiRequest<TemporaryContext>('/temporary-contexts/open', { method: 'POST', body: JSON.stringify({ passphrase: value }) }),
-    onSuccess: (_data, value) => { setUrlPassphrase(value); },
+    onSuccess: (data, value) => {
+      queryClient.setQueryData(['temporary-context', value], data);
+      setEntry(value);
+      setUrlPassphrase(value);
+    },
   });
   const generate = useMutation({
     mutationFn: () => apiRequest<GeneratedTemporaryContext>('/temporary-contexts/generate', { method: 'POST' }),
-    onSuccess: data => { setUrlPassphrase(data.passphrase); },
+    onSuccess: data => {
+      queryClient.setQueryData(['temporary-context', data.passphrase], data);
+      setUrlPassphrase(data.passphrase);
+    },
   });
   const append = useMutation({
     mutationFn: (content: string) => apiRequest<TemporaryContext>('/temporary-contexts/append', {
@@ -189,6 +196,20 @@ export function TemporaryContextPage() {
   });
   const editConflict = (update.error instanceof ApiError && update.error.status === 409)
     || (edit !== null && read.data !== undefined && edit.version !== read.data.version);
+  const switching = open.isPending || generate.isPending;
+  const entryDisabled = switching || update.isPending || append.isPending;
+
+  function confirmSwitch() {
+    const hasDraft = Boolean(addition) || (edit !== null && edit.content !== read.data?.content);
+    return !hasDraft || window.confirm(t('@app.temp.confirmSwitch'));
+  }
+
+  function generateContext() {
+    if (entryDisabled || !confirmSwitch()) return;
+    open.reset();
+    setEntryError(null);
+    generate.mutate();
+  }
 
   // The URL is the credential source for refreshes, shared links, and history navigation.
   useEffect(() => {
@@ -229,10 +250,11 @@ export function TemporaryContextPage() {
 
   function submitEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (edit && !editConflict && !update.isPending) update.mutate(edit);
+    if (edit && !editConflict && !update.isPending && !switching) update.mutate(edit);
   }
   function submitEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (entryDisabled) return;
     // TextInput cannot carry the native minLength/maxLength constraints
     // (the Astryx component maps isRequired to aria-required only), so the
     // 8–128 char contract is enforced here with visible feedback instead
@@ -246,10 +268,13 @@ export function TemporaryContextPage() {
       return;
     }
     setEntryError(null);
+    if (entry !== passphrase && !confirmSwitch()) return;
+    generate.reset();
     open.mutate(entry);
   }
   function submitAddition(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (switching || append.isPending) return;
     if (!addition) {
       setAdditionError(t('@app.temp.addEmpty'));
       return;
@@ -291,7 +316,7 @@ export function TemporaryContextPage() {
             <Tab value="human" label={t('@app.temp.tabHumans')} />
           </TabList>
           {activeTab === 'human' ? (
-            !passphrase ? (
+            <>
               <Card>
                 <Stack gap={3}>
                   <Heading level={2}>{t('@app.temp.openHeading')}</Heading>
@@ -301,27 +326,30 @@ export function TemporaryContextPage() {
                         label={t('@app.temp.passphrase')}
                         value={entry}
                         onChange={value => { setEntry(value); setEntryError(null); }}
+                        isDisabled={entryDisabled}
                         isRequired
                         placeholder={t('@app.temp.passphrasePlaceholder')}
                         autoComplete="off"
                         {...(entryError || linkError ? { status: { type: 'error' as const, message: (entryError || linkError)! } } : {})}
                       />
                       <Stack direction="horizontal" gap={3} wrap="wrap">
-                        <Button label={t('@app.temp.enter')} variant="primary" type="submit" isLoading={open.isPending} />
-                        <Button label={t('@app.temp.generate')} variant="secondary" isLoading={generate.isPending} onClick={() => generate.mutate()} />
+                        <Button label={t('@app.temp.enter')} variant="primary" type="submit" isLoading={open.isPending} isDisabled={entryDisabled} />
+                        <Button label={t('@app.temp.generate')} variant="secondary" isLoading={generate.isPending} isDisabled={entryDisabled} onClick={generateContext} />
                       </Stack>
                     </Stack>
                   </form>
                   <Text type="supporting">{t('@app.temp.privacyNote')}</Text>
+                  {passphrase && <Text type="supporting">{t('@app.temp.switchHint')}</Text>}
                   <ErrorNotice error={open.error ?? generate.error} />
                 </Stack>
               </Card>
-            ) : (
+            {passphrase && (
               <>
                 <Card>
                   <Stack gap={3}>
                     <Heading level={2}>{t('@app.temp.shareHeading')}</Heading>
                     <Stack direction="horizontal" gap={2} vAlign="center" wrap="wrap">
+                      <Text type="supporting">{t('@app.temp.currentPassphrase')}</Text>
                       <Text type="code">{passphrase}</Text>
                       <Button label={copied ? t('@app.temp.copiedPassphrase') : t('@app.temp.copyPassphrase')} variant="secondary" size="sm" onClick={() => void copyPassphrase()} tooltip={t('@app.temp.copyPassphraseTooltip')} />
                       <Button label={copiedForAgent ? t('@app.temp.copiedForAgent') : t('@app.temp.copyForAgent')} variant="secondary" size="sm" onClick={() => void copyForAgent()} tooltip={t('@app.temp.copyForAgentTooltip')} />
@@ -332,15 +360,6 @@ export function TemporaryContextPage() {
                     </div>
                     {linkCopyFailed && <Text type="supporting" role="alert">{t('@app.temp.copyLinkFailed')}</Text>}
                     <Text type="supporting">{t('@app.temp.keepSafe')}</Text>
-                    <div>
-                      <Button
-                        label={t('@app.temp.leave')}
-                        variant="ghost"
-                        size="sm"
-                        isDisabled={update.isPending || append.isPending}
-                        onClick={() => setUrlPassphrase(null)}
-                      />
-                    </div>
                   </Stack>
                 </Card>
                 {read.error instanceof ApiError && read.error.status === 404 ? (
@@ -371,7 +390,7 @@ export function TemporaryContextPage() {
                                 label={t('@app.temp.editContent')}
                                 value={edit.content}
                                 onChange={content => setEdit({ ...edit, content })}
-                                isDisabled={update.isPending}
+                                isDisabled={update.isPending || switching}
                                 maxLength={100_000}
                                 rows={14}
                               />
@@ -380,7 +399,7 @@ export function TemporaryContextPage() {
                               )}
                               <ErrorNotice error={update.error instanceof ApiError && update.error.status === 409 ? null : update.error} />
                               <Stack direction="horizontal" gap={3} wrap="wrap">
-                                <Button label={t('@app.temp.saveChanges')} variant="primary" type="submit" isLoading={update.isPending} isDisabled={editConflict || update.isPending} />
+                                <Button label={t('@app.temp.saveChanges')} variant="primary" type="submit" isLoading={update.isPending} isDisabled={editConflict || update.isPending || switching} />
                                 <Button label={t('@app.temp.cancelEdit')} variant="secondary" isDisabled={update.isPending} onClick={() => { setEdit(null); update.reset(); }} />
                               </Stack>
                               {editConflict && <Heading level={3}>{t('@app.temp.latestContent')}</Heading>}
@@ -388,7 +407,7 @@ export function TemporaryContextPage() {
                           </form>
                         ) : (
                           <div>
-                            <Button label={t('@app.temp.editContent')} variant="secondary" size="sm" isDisabled={append.isPending} onClick={startEditing} />
+                            <Button label={t('@app.temp.editContent')} variant="secondary" size="sm" isDisabled={append.isPending || switching} onClick={startEditing} />
                           </div>
                         )}
                         {(!edit || editConflict) && (
@@ -409,6 +428,7 @@ export function TemporaryContextPage() {
                             <TextArea
                               label={t('@app.temp.addToContext')}
                               value={addition}
+                              isDisabled={switching || append.isPending}
                               onChange={value => { setAddition(value); setAdditionError(null); }}
                               isRequired
                               maxLength={20_000}
@@ -417,7 +437,7 @@ export function TemporaryContextPage() {
                             />
                             <ErrorNotice error={append.error} />
                             <div>
-                              <Button label={append.isPending ? t('@app.temp.adding') : t('@app.temp.addContent')} variant="primary" type="submit" isLoading={append.isPending} />
+                              <Button label={append.isPending ? t('@app.temp.adding') : t('@app.temp.addContent')} variant="primary" type="submit" isLoading={append.isPending} isDisabled={switching || append.isPending} />
                             </div>
                           </Stack>
                         </form>
@@ -426,7 +446,8 @@ export function TemporaryContextPage() {
                   </>
                 )}
               </>
-            )
+            )}
+            </>
           ) : (
             <Stack gap={4}>
               <Card>
