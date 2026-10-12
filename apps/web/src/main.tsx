@@ -5,6 +5,7 @@ import { RouterProvider } from 'react-router-dom';
 import { Theme } from '@astryxdesign/core/theme';
 import { LinkProvider } from '@astryxdesign/core/Link';
 import { neutralTheme } from '@astryxdesign/theme-neutral/built';
+import { Analytics } from '@vercel/analytics/react';
 import { I18nProvider } from './i18n';
 import { router } from './routes';
 import { AstryxRouterLink } from './components/astryx-router-link';
@@ -33,5 +34,6 @@ createRoot(root).render(
         </LinkProvider>
       </I18nProvider>
     </Theme>
+    <Analytics />
   </StrictMode>,
 );
