@@ -39,8 +39,22 @@ Workers 配置位于根目录 `wrangler.jsonc`，入口为 `apps/server/worker.m
 `WEB_ORIGIN`、`PUBLIC_BASE_URL`，避免加载根目录 `.env` 的开发配置。
 
 Render 保留作为备用及旧 Agent 地址的兼容入口；已复制的 Render MCP 地址需改为
-`https://context-port.vercel.app/mcp`。Workers 后端通过上述命令部署，目前没有配置
-Git push 后自动部署 Workers。
+`https://context-port.vercel.app/mcp`。
+
+### 自动部署
+
+`.github/workflows/ci.yml` 在推送 `main` 且 `verify`、`e2e` 均成功后自动部署 Workers。
+PR 和其他分支只执行检查，不发布生产环境。部署任务串行运行，并在发布前检查该提交
+仍为 `main` 的最新提交，避免重跑旧任务覆盖新版本。发布后检查存活和数据库连接。
+
+GitHub 仓库的 Actions Secret `CLOUDFLARE_API_TOKEN` 保存部署令牌，账户 ID 和
+Hyperdrive 绑定来自 `wrangler.jsonc`。CI 直接执行 `pnpm exec wrangler deploy`，
+沿用 Workers 中已有的业务密钥，不读取本机 `.env.cloudflare.local`。本机手动发布或
+更新业务密钥时，继续使用 `pnpm deploy:cloudflare`。部署令牌失效时，更新同名 GitHub
+Secret，并在 Actions 页面重跑失败的部署任务。
+
+数据库结构变更仍需使用生产数据库 direct/unpooled 连接手动执行迁移，自动部署不会
+运行生产数据库迁移。运行结果和日志位于 GitHub 的 CI workflow 下。
 
 ## Render
 

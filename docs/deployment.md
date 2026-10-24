@@ -43,8 +43,24 @@ increasing usage; no paid plan was enabled during migration.
 
 Render remains available for existing Agent configurations. New Agent setup
 instructions use `https://context-port.vercel.app/mcp` and `/api/v1`; update any
-previously copied Render endpoints. Backend updates are deployed with the command
-above; the repository does not automatically deploy Workers on Git pushes.
+previously copied Render endpoints.
+
+### Automatic deployment
+
+The `deploy-cloudflare` job in `.github/workflows/ci.yml` deploys after both
+`verify` and `e2e` pass on pushes to `main`. Pull requests and other branches only
+run checks. Deployments run serially and check that the commit is still the latest
+`main` before publishing, so rerunning an old job cannot overwrite a newer release.
+Liveness and database readiness are checked after deployment.
+
+The GitHub Actions repository secret `CLOUDFLARE_API_TOKEN` authorizes deployment.
+The account ID and Hyperdrive binding come from `wrangler.jsonc`. CI runs
+`pnpm exec wrangler deploy`, preserving existing Worker business secrets without
+requiring the local `.env.cloudflare.local` file. Continue to use
+`pnpm deploy:cloudflare` for manual local deployments or business-secret updates.
+If the deployment token expires, update the GitHub secret and rerun the failed job
+from the Actions page. Production schema migrations remain manual and must use the
+database's direct/unpooled connection; CI does not migrate the production database.
 
 ## Render (alternative)
 
