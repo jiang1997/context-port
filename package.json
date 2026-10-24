@@ -8,6 +8,9 @@
     "node": ">=24.0.0"
   },
   "scripts": {
+    "dev:cloudflare": "wrangler dev",
+    "deploy:cloudflare": "node scripts/deploy-cloudflare.mjs",
+    "check:cloudflare": "wrangler deploy --dry-run",
     "build": "pnpm -r --if-present build",
     "dev": "pnpm --filter @contextport/contracts build && pnpm --filter @contextport/db build && pnpm --parallel --filter @contextport/server --filter @contextport/web dev",
     "typecheck": "pnpm --filter @contextport/contracts build && pnpm --filter @contextport/db build && pnpm --filter @contextport/web typecheck && pnpm --filter @contextport/server typecheck && tsc -p tsconfig.e2e.json",
@@ -19,6 +22,7 @@
   "devDependencies": {
     "@playwright/test": "1.63.0",
     "@types/node": "26.6.2",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "wrangler": "4.152.0"
   }
 }

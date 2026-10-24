@@ -45,7 +45,7 @@ Open `http://localhost:5173`. Temporary Contexts work immediately; account featu
 | [Usage](docs/usage.md) | Context types, Web workflow, permissions, and current limits |
 | [Agent access](docs/agent-access.md) | REST endpoints, curl examples, MCP, and version conflicts |
 | [Local development](docs/development.md) | Environment setup, Google login, and testing |
-| [Deployment](docs/deployment.md) | Vercel / Render configuration and database migrations |
+| [Deployment](docs/deployment.md) | Vercel / Cloudflare Workers / Render configuration and database migrations |
 
 Product design and planned work: [note.md](note.md). Planned features are not all implemented.
 

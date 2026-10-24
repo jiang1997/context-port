@@ -3,6 +3,9 @@ dist/
 coverage/
 .env
 .env.local
+.env.cloudflare.local
+.dev.vars*
+.wrangler/
 *.log
 *.tsbuildinfo
 .DS_Store
@@ -21,3 +24,4 @@ apps/web/.vite/
 !/docs/deployment.zh-CN.md
 
 e2e-artifacts/
+.vercel

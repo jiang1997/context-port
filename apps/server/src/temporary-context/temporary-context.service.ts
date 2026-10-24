@@ -18,6 +18,8 @@ export class TemporaryContextService implements OnModuleInit, OnModuleDestroy {
   private cleanupTask?: Promise<void>;
 
   async onModuleInit() {
+    // Workers use the scheduled handler; no background timers or startup I/O.
+    if (getEnvironment().SERVER_RUNTIME === 'workers') return;
     await this.runCleanup();
     this.scheduleCleanup();
   }

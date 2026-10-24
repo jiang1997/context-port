@@ -45,7 +45,7 @@ pnpm dev
 | [使用指南](docs/usage.zh-CN.md) | 使用模式、网页操作、权限及当前限制 |
 | [Agent 接入](docs/agent-access.zh-CN.md) | REST 接口、curl 示例、MCP 和版本冲突处理 |
 | [本地开发](docs/development.zh-CN.md) | 环境配置、Google 登录及测试 |
-| [部署](docs/deployment.zh-CN.md) | Vercel / Render 配置和数据库迁移 |
+| [部署](docs/deployment.zh-CN.md) | Vercel / Cloudflare Workers / Render 配置和数据库迁移 |
 
 产品设计及后续计划见 [note.md](note.md)，其中规划的功能并非全部已实现。
 

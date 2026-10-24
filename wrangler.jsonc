@@ -1,0 +1,44 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "contextport-server",
+	"main": "apps/server/worker.mjs",
+	"account_id": "1c96ffdff86bcc9b1a921e1997117828",
+	"compatibility_date": "2026-10-24",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"workers_dev": true,
+	"alias": {
+		"class-validator": "./apps/server/worker-optional.mjs",
+		"class-transformer": "./apps/server/worker-optional.mjs",
+		"@nestjs/microservices": "./apps/server/worker-optional.mjs",
+		"@nestjs/websockets/socket-module.js": "./apps/server/worker-optional.mjs",
+		"@nestjs/microservices/microservices-module.js": "./apps/server/worker-optional.mjs"
+	},
+	"build": {
+		"command": "pnpm --filter @contextport/contracts build && pnpm --filter @contextport/db build && pnpm --filter @contextport/server build"
+	},
+	"vars": {
+		"NODE_ENV": "production",
+		"SERVER_RUNTIME": "workers",
+		"DEPLOYMENT_MODE": "network",
+		"WEB_ORIGIN": "https://context-port.vercel.app",
+		"PUBLIC_BASE_URL": "https://context-port.vercel.app",
+		"COOKIE_SECURE": "true",
+		"LOG_LEVEL": "warn"
+	},
+	"triggers": {
+		"crons": [
+			"0 3 * * *"
+		]
+	},
+	"observability": {
+		"enabled": true
+	},
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			"id": "885f334dedf344a38b16b390825fd5fd"
+		}
+	]
+}

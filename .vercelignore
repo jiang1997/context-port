@@ -1,0 +1,7 @@
+.env
+.env.*
+.dev.vars*
+.wrangler/
+work/
+review.md
+e2e-artifacts/

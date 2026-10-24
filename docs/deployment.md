@@ -2,6 +2,52 @@
 
 [Back to README](../README.md) · [简体中文](deployment.zh-CN.md)
 
+## Cloudflare Workers
+
+The backend runs on [Cloudflare Workers](https://contextport-server.jieke.workers.dev),
+with the existing Neon PostgreSQL database and a Hyperdrive connection pool. Query
+caching is disabled to preserve read-after-write consistency. The frontend stays
+on [Vercel](https://context-port.vercel.app); `/api/*` and `/mcp` are proxied to
+Workers, so OAuth callbacks and browser sessions keep their existing public origin.
+
+Use Node.js 24+ and pnpm. Authenticate with `pnpm exec wrangler login`, copy
+`.env.cloudflare.example` to the Git-ignored `.env.cloudflare.local`, and copy the
+four production secrets from Render. Keep the original `CLIPBOARD_SECRET` so
+existing shared passphrases continue to resolve their records. Then run:
+
+```bash
+pnpm check:cloudflare
+pnpm deploy:cloudflare
+```
+
+The deployment script uploads secrets together with the Worker version. It does
+not change the database schema. `wrangler.jsonc` defines the Worker and existing
+Hyperdrive binding; deploying to another account requires replacing both resource
+IDs. The entry point uses TypeScript-compiled JavaScript to preserve Nest decorator
+metadata. Nest initializes during Worker startup, and each invocation creates and
+closes its own database connections. A daily 03:00 UTC Cron Trigger deletes expired
+temporary contexts instead of relying on a long-lived process timer.
+
+For local development, provide a `.dev.vars` file and set
+`CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` to a local PostgreSQL URL,
+then run `pnpm dev:cloudflare`. Include `SERVER_RUNTIME=workers`,
+`DEPLOYMENT_MODE=network`, `CLIPBOARD_SECRET`, and matching local `WEB_ORIGIN` and
+`PUBLIC_BASE_URL` values. Supply all Google settings together, or omit all three.
+
+Production smoke tests passed for concurrent writes, 100,000-character text,
+API-key REST access, MCP initialization, and OAuth redirects. Common text requests
+used approximately 4–8 ms of CPU in the migration sample, while some large-text
+requests exceeded the Free plan's 10 ms CPU budget. These successful samples do
+not guarantee sustained workloads fit the Free plan. Check Workers metrics before
+increasing usage; no paid plan was enabled during migration.
+
+Render remains available for existing Agent configurations. New Agent setup
+instructions use `https://context-port.vercel.app/mcp` and `/api/v1`; update any
+previously copied Render endpoints. Backend updates are deployed with the command
+above; the repository does not automatically deploy Workers on Git pushes.
+
+## Render (alternative)
+
 The repository includes [Vercel configuration](../vercel.json) for the Web and a
 [Render Blueprint](../render.yaml) for the server. Configure the projects' Git
 connections and production branch; this repository uses `main`. With Git deployment
@@ -16,8 +62,8 @@ parallel, but only promotes the build after both required statuses succeed.
 This requires no Vercel deployment token. Confirm both deployments finish before
 testing a new feature.
 
-Keep `VITE_API_BASE_URL=/api/v1` on Vercel. Its `/api/*` rewrite targets the Render
-server; change the destination if using another server. On Render, configure
+Keep `VITE_API_BASE_URL=/api/v1` on Vercel. To switch back to Render, change the
+`/api/*` and `/mcp` rewrite destinations in `vercel.json`. On Render, configure
 `DATABASE_URL`, `WEB_ORIGIN`, and a stable `CLIPBOARD_SECRET` of at least 32
 characters for network mode. Account login also needs the Google variables in [the development guide](development.md)
 and a `PUBLIC_BASE_URL` matching the public Web origin, with the corresponding

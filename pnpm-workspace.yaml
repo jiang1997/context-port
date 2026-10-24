@@ -6,6 +6,7 @@ allowBuilds:
   '@astryxdesign/cli': true
   '@astryxdesign/core': true
   esbuild: true
+  workerd: true
 
 minimumReleaseAgeExclude:
   - '@types/node@26.6.2'

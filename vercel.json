@@ -7,8 +7,9 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://contextport-server-sg.onrender.com/api/:path*"
+      "destination": "https://contextport-server.jieke.workers.dev/api/:path*"
     },
+    { "source": "/mcp", "destination": "https://contextport-server.jieke.workers.dev/mcp" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

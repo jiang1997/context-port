@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url';
 import { config as loadEnvironmentFile } from 'dotenv';
 import { z } from 'zod';
 
-loadEnvironmentFile({
+if (process.env.SERVER_RUNTIME !== 'workers') loadEnvironmentFile({
   path: fileURLToPath(new URL('../../../../.env', import.meta.url)),
   quiet: true,
 });
@@ -10,6 +10,7 @@ loadEnvironmentFile({
 const EnvironmentSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    SERVER_RUNTIME: z.enum(['node', 'workers']).default('node'),
     DATABASE_URL: z
       .string()
       .url()

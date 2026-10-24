@@ -16,7 +16,7 @@ import { useI18n } from '../i18n';
 
 const API_ORIGIN = import.meta.env.DEV
   ? 'http://127.0.0.1:3000'
-  : 'https://contextport-server-sg.onrender.com';
+  : window.location.origin;
 const MCP_ENDPOINT = `${API_ORIGIN}/mcp`;
 const REST_ENDPOINT = `${API_ORIGIN}/api/v1`;
 
