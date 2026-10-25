@@ -207,7 +207,7 @@ export const enCatalog = {
   '@app.agent.instructions.expires': { defaultMessage: 'Expires: {expires}' },
   '@app.agent.instructions.readHeading': { defaultMessage: 'Read the current content:' },
   '@app.agent.instructions.appendHeading': {
-    defaultMessage: 'Append / modify (appends Markdown, 1-20000 chars per call, 100000 chars max total):',
+    defaultMessage: 'Append content (Markdown, 1–20,000 characters per call, 100,000 characters total):',
   },
   '@app.agent.instructions.notesHeading': { defaultMessage: 'Notes for agent:' },
   '@app.agent.instructions.note1': {
@@ -218,7 +218,7 @@ export const enCatalog = {
   },
   '@app.agent.instructions.note3': {
     defaultMessage:
-      '- `append` concatenates with a blank-line separator. There is no delete/edit API; to "modify", read first then append the correction.',
+      '- `append` adds content at the end, separated by a blank line. To edit existing content, read it first, then POST to `/temporary-contexts/update` with `passphrase`, the full replacement `content`, and `expectedVersion` set to the version returned by `read`. On a version conflict, read again, merge your changes, and retry.',
   },
   '@app.agent.guide.intro': {
     defaultMessage: 'Temporary Context lets any person or agent share short-lived text without login. It expires after 7 days without access; each successful access renews it for another week.',
@@ -238,7 +238,7 @@ export const enCatalog = {
   },
   '@app.agent.guide.step2': { defaultMessage: '2. Read the current content:' },
   '@app.agent.guide.step3': {
-    defaultMessage: '3. Append / modify (appends Markdown, 1-20000 chars per call, 100000 chars max total):',
+    defaultMessage: '3. Append content (Markdown, 1–20,000 characters per call, 100,000 characters total):',
   },
   '@app.agent.guide.rulesHeading': { defaultMessage: 'Rules for agent:' },
   '@app.agent.guide.rule1': {
@@ -249,7 +249,7 @@ export const enCatalog = {
   },
   '@app.agent.guide.rule3': {
     defaultMessage:
-      '- `append` concatenates with a blank-line separator. There is no delete/edit API; to "modify", read first then append the correction.',
+      '- `append` adds content at the end, separated by a blank line. To edit existing content, read it first, then POST to `/temporary-contexts/update` with `passphrase`, the full replacement `content`, and `expectedVersion` set to the version returned by `read`. On a version conflict, read again, merge your changes, and retry.',
   },
   '@app.agent.guide.rule4': { defaultMessage: '- Rate limit is 60 requests/min per IP.' },
 } as const satisfies Catalog;
@@ -302,7 +302,7 @@ export const zhCNCatalog: Record<AppMessageKey, MessageEntry> = {
   '@app.contexts.new': { defaultMessage: '新建上下文' },
   '@app.contexts.intro': {
     defaultMessage:
-      '把项目背景放在这里，具体任务和讨论分别记在主题文档里。',
+      '在上下文中记录项目背景，在主题文档中跟进具体任务和讨论。',
   },
   '@app.contexts.emptyTitle': { defaultMessage: '还没有上下文' },
   '@app.contexts.emptyDescription': {
@@ -365,8 +365,8 @@ export const zhCNCatalog: Record<AppMessageKey, MessageEntry> = {
     defaultMessage: '无需登录, 凭口令即可与他人或智能体分享文本',
   },
   '@app.temp.retention': { defaultMessage: '连续 7 天无访问会自动删除' },
-  '@app.temp.tabAgents': { defaultMessage: '智能体接入' },
-  '@app.temp.tabHumans': { defaultMessage: '手动使用' },
+  '@app.temp.tabAgents': { defaultMessage: '通过智能体使用' },
+  '@app.temp.tabHumans': { defaultMessage: '在网页中使用' },
   '@app.temp.openHeading': { defaultMessage: '打开或创建临时上下文' },
   '@app.temp.passphrase': { defaultMessage: '访问口令' },
   '@app.temp.passphrasePlaceholder': { defaultMessage: '至少 8 个字符' },
@@ -443,7 +443,7 @@ export const zhCNCatalog: Record<AppMessageKey, MessageEntry> = {
   },
   '@app.agent.instructions.note3': {
     defaultMessage:
-      '- `append` 会将新内容添加到末尾，与已有内容之间以空行分隔。不支持删除或直接编辑；需要更正时，请先读取已有内容，再追加更正说明。',
+      '- `append` 将新内容添加到末尾，以空行分隔。编辑已有内容时，请先读取，再向 `/temporary-contexts/update` 发送 POST 请求，提供 `passphrase`、替换后的完整 `content`，以及设为 `read` 返回版本号的 `expectedVersion`。如遇版本冲突，请重新读取、合并修改后重试。',
   },
   '@app.agent.guide.intro': {
     defaultMessage: '临时上下文用于与用户或其他智能体共享任务信息，无需登录，连续 7 天未访问后过期并自动删除，每次成功访问续期一周。',
@@ -470,7 +470,7 @@ export const zhCNCatalog: Record<AppMessageKey, MessageEntry> = {
   },
   '@app.agent.guide.rule3': {
     defaultMessage:
-      '- `append` 会将新内容添加到末尾，与已有内容之间以空行分隔。不支持删除或直接编辑；需要更正时，请先读取已有内容，再追加更正说明。',
+      '- `append` 将新内容添加到末尾，以空行分隔。编辑已有内容时，请先读取，再向 `/temporary-contexts/update` 发送 POST 请求，提供 `passphrase`、替换后的完整 `content`，以及设为 `read` 返回版本号的 `expectedVersion`。如遇版本冲突，请重新读取、合并修改后重试。',
   },
   '@app.agent.guide.rule4': { defaultMessage: '- 每个 IP 每分钟最多可发送 60 次请求。' },
 };
