@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { TemporaryContext } from '@contextport/contracts';
@@ -33,6 +33,11 @@ function resolveTemporaryContextApiBase(): string {
 
 function shellQuotedJson(payload: string): string {
   return `'${payload.replace(/'/g, `'\"'\"'`)}'`;
+}
+
+/** Returns true for Cmd+Enter (macOS) or Ctrl+Enter (Windows/Linux) */
+export function isSubmitShortcut(event: { key: string; metaKey?: boolean; ctrlKey?: boolean }): boolean {
+  return Boolean((event.metaKey || event.ctrlKey) && event.key === 'Enter');
 }
 
 /**
@@ -132,6 +137,7 @@ export function TemporaryContextPage() {
   const [additionError, setAdditionError] = useState<string | null>(null);
   const [edit, setEdit] = useState<{ content: string; version: number } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copiedContent, setCopiedContent] = useState(false);
   const [copiedForAgent, setCopiedForAgent] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [linkCopyFailed, setLinkCopyFailed] = useState(false);
@@ -225,10 +231,17 @@ export function TemporaryContextPage() {
     update.reset();
     append.reset();
     setCopied(false);
+    setCopiedContent(false);
     setCopiedForAgent(false);
     setCopiedLink(false);
     setLinkCopyFailed(false);
   }, [location.hash]);
+
+  useEffect(() => {
+    if (!copiedContent) return;
+    const timer = window.setTimeout(() => setCopiedContent(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [copiedContent]);
 
   useEffect(() => {
     if (!copiedLink) return;
@@ -248,9 +261,18 @@ export function TemporaryContextPage() {
     setEdit({ content: read.data.content, version: read.data.version });
   }
 
+  function saveEdit() {
+    if (edit && !editConflict && !update.isPending && !switching) update.mutate(edit);
+  }
   function submitEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (edit && !editConflict && !update.isPending && !switching) update.mutate(edit);
+    saveEdit();
+  }
+  function handleEditKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (isSubmitShortcut(event)) {
+      event.preventDefault();
+      saveEdit();
+    }
   }
   function submitEntry(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -272,8 +294,7 @@ export function TemporaryContextPage() {
     generate.reset();
     open.mutate(entry);
   }
-  function submitAddition(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function saveAddition() {
     if (switching || append.isPending) return;
     if (!addition) {
       setAdditionError(t('@app.temp.addEmpty'));
@@ -281,6 +302,21 @@ export function TemporaryContextPage() {
     }
     setAdditionError(null);
     append.mutate(addition);
+  }
+  function submitAddition(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    saveAddition();
+  }
+  function handleAdditionKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (isSubmitShortcut(event)) {
+      event.preventDefault();
+      saveAddition();
+    }
+  }
+  async function copyContent() {
+    if (!read.data?.content) return;
+    const ok = await copyTextToClipboard(read.data.content);
+    if (ok) setCopiedContent(true);
   }
   async function copyPassphrase() {
     const ok = await copyTextToClipboard(passphrase);
@@ -390,6 +426,7 @@ export function TemporaryContextPage() {
                                 label={t('@app.temp.editContent')}
                                 value={edit.content}
                                 onChange={content => setEdit({ ...edit, content })}
+                                onKeyDown={handleEditKeyDown}
                                 isDisabled={update.isPending || switching}
                                 maxLength={100_000}
                                 rows={14}
@@ -398,17 +435,34 @@ export function TemporaryContextPage() {
                                 <Text type="supporting" role="alert">{t('@app.temp.editConflict')}</Text>
                               )}
                               <ErrorNotice error={update.error instanceof ApiError && update.error.status === 409 ? null : update.error} />
-                              <Stack direction="horizontal" gap={3} wrap="wrap">
-                                <Button label={t('@app.temp.saveChanges')} variant="primary" type="submit" isLoading={update.isPending} isDisabled={editConflict || update.isPending || switching} />
+                              <Stack direction="horizontal" gap={3} vAlign="center" wrap="wrap">
+                                <Button
+                                  label={t('@app.temp.saveChanges')}
+                                  variant="primary"
+                                  type="submit"
+                                  isLoading={update.isPending}
+                                  isDisabled={editConflict || update.isPending || switching}
+                                  tooltip={t('@app.temp.submitShortcutTooltip')}
+                                />
                                 <Button label={t('@app.temp.cancelEdit')} variant="secondary" isDisabled={update.isPending} onClick={() => { setEdit(null); update.reset(); }} />
+                                <Text type="supporting">{t('@app.temp.submitShortcutHint')}</Text>
                               </Stack>
                               {editConflict && <Heading level={3}>{t('@app.temp.latestContent')}</Heading>}
                             </Stack>
                           </form>
                         ) : (
-                          <div>
+                          <Stack direction="horizontal" gap={2} vAlign="center" wrap="wrap">
                             <Button label={t('@app.temp.editContent')} variant="secondary" size="sm" isDisabled={append.isPending || switching} onClick={startEditing} />
-                          </div>
+                            {read.data.content && (
+                              <Button
+                                label={copiedContent ? t('@app.temp.copiedContent') : t('@app.temp.copyContent')}
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => void copyContent()}
+                                tooltip={t('@app.temp.copyContentTooltip')}
+                              />
+                            )}
+                          </Stack>
                         )}
                         {(!edit || editConflict) && (
                           <>
@@ -430,15 +484,24 @@ export function TemporaryContextPage() {
                               value={addition}
                               isDisabled={switching || append.isPending}
                               onChange={value => { setAddition(value); setAdditionError(null); }}
+                              onKeyDown={handleAdditionKeyDown}
                               isRequired
                               maxLength={20_000}
                               rows={7}
                               {...(additionError ? { status: { type: 'error' as const, message: additionError } } : {})}
                             />
                             <ErrorNotice error={append.error} />
-                            <div>
-                              <Button label={append.isPending ? t('@app.temp.adding') : t('@app.temp.addContent')} variant="primary" type="submit" isLoading={append.isPending} isDisabled={switching || append.isPending} />
-                            </div>
+                            <Stack direction="horizontal" gap={3} vAlign="center" wrap="wrap">
+                              <Button
+                                label={append.isPending ? t('@app.temp.adding') : t('@app.temp.addContent')}
+                                variant="primary"
+                                type="submit"
+                                isLoading={append.isPending}
+                                isDisabled={switching || append.isPending}
+                                tooltip={t('@app.temp.submitShortcutTooltip')}
+                              />
+                              <Text type="supporting">{t('@app.temp.submitShortcutHint')}</Text>
+                            </Stack>
                           </Stack>
                         </form>
                       </Card>

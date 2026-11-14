@@ -175,6 +175,11 @@ export const enCatalog = {
     defaultMessage:
       'This content has changed. Copy your changes, cancel editing, then reopen the editor and merge them into the latest content.',
   },
+  '@app.temp.copyContent': { defaultMessage: 'Copy content' },
+  '@app.temp.copiedContent': { defaultMessage: 'Content copied' },
+  '@app.temp.copyContentTooltip': { defaultMessage: 'Copy raw Markdown content' },
+  '@app.temp.submitShortcutHint': { defaultMessage: '⌘/Ctrl + Enter to submit' },
+  '@app.temp.submitShortcutTooltip': { defaultMessage: 'Press ⌘/Ctrl + Enter to submit' },
   '@app.temp.noContent': {
     defaultMessage: 'No content yet. Add something below, or ask your agent to add it.',
   },
@@ -402,6 +407,11 @@ export const zhCNCatalog: Record<AppMessageKey, MessageEntry> = {
   '@app.temp.cancelEdit': { defaultMessage: '取消编辑' },
   '@app.temp.latestContent': { defaultMessage: '最新共享内容' },
   '@app.temp.editConflict': { defaultMessage: '内容已被更新。复制你的修改，取消编辑后重新进入编辑框，再合并到最新内容上。' },
+  '@app.temp.copyContent': { defaultMessage: '复制正文' },
+  '@app.temp.copiedContent': { defaultMessage: '正文已复制' },
+  '@app.temp.copyContentTooltip': { defaultMessage: '复制 Markdown 原文' },
+  '@app.temp.submitShortcutHint': { defaultMessage: '按 ⌘/Ctrl + Enter 快速提交' },
+  '@app.temp.submitShortcutTooltip': { defaultMessage: '按 ⌘/Ctrl + Enter 快速提交' },
   '@app.temp.noContent': {
     defaultMessage: '这里还没有内容。你可以在下方添加，也可以让智能体来写。',
   },

@@ -5,6 +5,7 @@ import {
   buildClipboardAgentInstructions,
   buildClipboardAgentGuide,
   validateAgentGuidePassphrase,
+  isSubmitShortcut,
 } from './temporary-context-page';
 
 describe('Temporary Context Agent Instructions & Guide', () => {
@@ -84,5 +85,24 @@ describe('Temporary Context Agent Instructions & Guide', () => {
     expect(guide).toContain('curl -s -X POST "https://api.example.com/api/v1/temporary-contexts/generate"');
     // The literal JSON brace examples must survive interpolation untouched.
     expect(guide).toContain('{ passphrase, content, version, expiresAt }');
+  });
+
+  describe('isSubmitShortcut', () => {
+    it('returns true for Cmd+Enter (metaKey)', () => {
+      expect(isSubmitShortcut({ key: 'Enter', metaKey: true, ctrlKey: false })).toBe(true);
+    });
+
+    it('returns true for Ctrl+Enter (ctrlKey)', () => {
+      expect(isSubmitShortcut({ key: 'Enter', metaKey: false, ctrlKey: true })).toBe(true);
+    });
+
+    it('returns false for plain Enter to preserve multi-line editing', () => {
+      expect(isSubmitShortcut({ key: 'Enter', metaKey: false, ctrlKey: false })).toBe(false);
+    });
+
+    it('returns false for other keys even with modifier keys pressed', () => {
+      expect(isSubmitShortcut({ key: 's', metaKey: true, ctrlKey: false })).toBe(false);
+      expect(isSubmitShortcut({ key: 'c', metaKey: false, ctrlKey: true })).toBe(false);
+    });
   });
 });
