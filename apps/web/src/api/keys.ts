@@ -13,8 +13,8 @@ export interface CreatedApiKey extends ApiKeyInfo {
   key: string;
 }
 
-export function listKeys(): Promise<ApiKeyInfo[]> {
-  return apiRequest<ApiKeyInfo[]>('/auth/keys');
+export function listKeys(signal?: AbortSignal): Promise<ApiKeyInfo[]> {
+  return apiRequest<ApiKeyInfo[]>('/auth/keys', signal ? { signal } : {});
 }
 
 export function createKey(name: string): Promise<CreatedApiKey> {

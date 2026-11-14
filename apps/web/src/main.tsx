@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { createQueryClient } from './api/query-client';
 import { RouterProvider } from 'react-router-dom';
 import { Theme } from '@astryxdesign/core/theme';
 import { LinkProvider } from '@astryxdesign/core/Link';
@@ -14,11 +15,7 @@ import '@astryxdesign/core/astryx.css';
 import '@astryxdesign/theme-neutral/theme.css';
 import './styles.css';
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { staleTime: 15_000, retry: 1 },
-  },
-});
+const queryClient = createQueryClient();
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Root element is missing.');

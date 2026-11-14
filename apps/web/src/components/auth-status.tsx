@@ -1,4 +1,5 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { sessionQueryKey } from '../api/query-client';
 import { useLocation } from 'react-router-dom';
 import { Avatar } from '@astryxdesign/core/Avatar';
 import { Banner } from '@astryxdesign/core/Banner';
@@ -12,9 +13,15 @@ import { ErrorNotice } from './feedback';
 
 function UserMenu({ user }: { user: SessionUser }) {
   const { t } = useI18n();
+  const client = useQueryClient();
   const mutation = useMutation({
     mutationFn: logout,
-    onSuccess: () => window.location.replace('/'),
+    onSuccess: async () => {
+      client.setQueryData(sessionQueryKey, { user: null, csrfToken: null });
+      await client.cancelQueries({ queryKey: ['account'] });
+      client.removeQueries({ queryKey: ['account'] });
+      window.location.replace('/');
+    },
   });
   return (
     <Stack direction="horizontal" gap={2} vAlign="center">
@@ -29,7 +36,7 @@ function UserMenu({ user }: { user: SessionUser }) {
 }
 
 export function useAuthSession() {
-  return useQuery({ queryKey: ['auth', 'me'], queryFn: fetchMe, staleTime: 60_000, retry: false });
+  return useQuery({ queryKey: sessionQueryKey, queryFn: fetchMe, staleTime: 60_000, refetchInterval: 10_000, retry: false });
 }
 
 export function LoginButton() {

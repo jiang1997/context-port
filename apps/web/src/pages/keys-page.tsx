@@ -8,6 +8,7 @@ import { Stack } from '@astryxdesign/core/Stack';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { createKey, listKeys, revokeKey } from '../api/keys';
+import { accountQueryKey } from '../api/query-client';
 import { useAuthSession } from '../components/auth-status';
 import { copyTextToClipboard } from '../components/copy-context-id';
 import { ErrorNotice, LoadingList, SignedOutNotice } from '../components/feedback';
@@ -91,15 +92,17 @@ function NewKeyBanner({ name, rawKey }: { name: string; rawKey: string }) {
 function KeyForm({ pending }: { pending: boolean }) {
   const { t } = useI18n();
   const client = useQueryClient();
+  const auth = useAuthSession();
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ name: string; key: string } | null>(null);
   const mutation = useMutation({
+    mutationKey: [...accountQueryKey(auth.data?.user?.id), 'create-key'],
     mutationFn: () => createKey(name.trim()),
     onSuccess: (result) => {
       setCreated({ name: result.name, key: result.key });
       setName('');
-      void client.invalidateQueries({ queryKey: ['auth', 'keys'] });
+      void client.invalidateQueries({ queryKey: [...accountQueryKey(auth.data?.user?.id), 'keys'] });
     },
   });
   function submit(event: FormEvent) {
@@ -142,15 +145,16 @@ export function KeysPage() {
   const auth = useAuthSession();
   const client = useQueryClient();
   const query = useQuery({
-    queryKey: ['auth', 'keys'],
-    queryFn: listKeys,
+    queryKey: [...accountQueryKey(auth.data?.user?.id), 'keys'],
+    queryFn: ({ signal }) => listKeys(signal),
     enabled: Boolean(auth.data?.user),
     refetchInterval: 10_000,
   });
   const keys = auth.data?.user ? query.data : undefined;
   const revoke = useMutation({
+    mutationKey: [...accountQueryKey(auth.data?.user?.id), 'revoke-key'],
     mutationFn: revokeKey,
-    onSuccess: () => void client.invalidateQueries({ queryKey: ['auth', 'keys'] }),
+    onSuccess: () => void client.invalidateQueries({ queryKey: [...accountQueryKey(auth.data?.user?.id), 'keys'] }),
   });
   const active = keys?.filter(key => !key.revokedAt) ?? [];
   const revoked = keys?.filter(key => key.revokedAt) ?? [];

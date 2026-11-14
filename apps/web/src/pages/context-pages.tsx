@@ -12,7 +12,8 @@ import { Stack } from '@astryxdesign/core/Stack';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { TextArea } from '@astryxdesign/core/TextArea';
 import { TextInput } from '@astryxdesign/core/TextInput';
-import { apiRequest } from '../api/client';
+import { apiRequest, ApiError } from '../api/client';
+import { accountQueryKey } from '../api/query-client';
 import { useAuthSession } from '../components/auth-status';
 import { CopyContextIdButton } from '../components/copy-context-id';
 import { MarkdownContent } from '../components/markdown-content';
@@ -69,7 +70,7 @@ export function ContextListPage() {
   const { t } = useI18n();
   const [offset, setOffset] = useState(0);
   const auth = useAuthSession();
-  const query = useQuery({ queryKey: ['contexts', offset], queryFn: () => apiRequest<ContextSummary[]>(`/contexts?limit=20&offset=${offset}`), enabled: Boolean(auth.data?.user), refetchInterval: 5000 });
+  const query = useQuery({ queryKey: [...accountQueryKey(auth.data?.user?.id), 'contexts', offset], queryFn: ({ signal }) => apiRequest<ContextSummary[]>(`/contexts?limit=20&offset=${offset}`, { signal }), enabled: Boolean(auth.data?.user), refetchInterval: 5000 });
   const contexts = auth.data?.user ? query.data : undefined;
   return (
     <Layout
@@ -127,10 +128,12 @@ export function ContextListPage() {
 
 export function ContextCreatePage() {
   const { t } = useI18n();
+  const auth = useAuthSession();
   const navigate = useNavigate(); const client = useQueryClient();
   const mutation = useMutation({
+    mutationKey: [...accountQueryKey(auth.data?.user?.id), 'create-context'],
     mutationFn: (data: CreateContextInput) => apiRequest<ContextDetail>('/contexts', { method: 'POST', body: JSON.stringify(data) }),
-    onSuccess: async data => { await client.invalidateQueries({ queryKey: ['contexts'] }); navigate(`/contexts/${data.id}`); },
+    onSuccess: async data => { await client.invalidateQueries({ queryKey: [...accountQueryKey(auth.data?.user?.id), 'contexts'] }); navigate(`/contexts/${data.id}`); },
   });
   return (
     <Layout
@@ -153,11 +156,13 @@ export function ContextCreatePage() {
 export function ContextDetailPage() {
   const { t } = useI18n();
   const { contextId } = useParams();
-  const query = useQuery({ queryKey: ['context', contextId], queryFn: () => apiRequest<ContextDetail>(`/contexts/${contextId}`), refetchInterval: 5000 });
+  const auth = useAuthSession();
+  const query = useQuery({ queryKey: [...accountQueryKey(auth.data?.user?.id), 'context', contextId], queryFn: ({ signal }) => apiRequest<ContextDetail>(`/contexts/${contextId}`, { signal }), enabled: Boolean(auth.data?.user), refetchInterval: 5000 });
   const client = useQueryClient(); const navigate = useNavigate();
   const mutation = useMutation({
+    mutationKey: [...accountQueryKey(auth.data?.user?.id), 'create-thread'],
     mutationFn: (data: CreateContextInput) => apiRequest<Thread>(`/contexts/${contextId}/threads`, { method: 'POST', body: JSON.stringify(data) }),
-    onSuccess: async data => { await client.invalidateQueries({ queryKey: ['context', contextId] }); navigate(`/contexts/${contextId}/threads/${data.id}`); },
+    onSuccess: async data => { await client.invalidateQueries({ queryKey: [...accountQueryKey(auth.data?.user?.id), 'context', contextId] }); navigate(`/contexts/${contextId}/threads/${data.id}`); },
   });
   return (
     <Layout
@@ -168,7 +173,7 @@ export function ContextDetailPage() {
           <Link href="/contexts">{t('@app.contexts.backToList')}</Link>
           <ErrorNotice error={query.error} />
           {query.isPending && <Skeleton lines={6} heading />}
-          {query.data && (
+          {auth.data?.user && !(query.error instanceof ApiError && [401, 403].includes(query.error.status)) && query.data && (
             <>
               <Stack gap={2}>
                 <Heading level={1}>{query.data.title}</Heading>
@@ -219,7 +224,8 @@ export function ContextDetailPage() {
 export function ThreadDetailPage() {
   const { t } = useI18n();
   const { contextId, threadId } = useParams();
-  const query = useQuery({ queryKey: ['thread', contextId, threadId], queryFn: () => apiRequest<Thread>(`/contexts/${contextId}/threads/${threadId}`), refetchInterval: 5000 });
+  const auth = useAuthSession();
+  const query = useQuery({ queryKey: [...accountQueryKey(auth.data?.user?.id), 'thread', contextId, threadId], queryFn: ({ signal }) => apiRequest<Thread>(`/contexts/${contextId}/threads/${threadId}`, { signal }), enabled: Boolean(auth.data?.user), refetchInterval: 5000 });
   return (
     <Layout
       height="auto"
@@ -229,7 +235,7 @@ export function ThreadDetailPage() {
           <Link href={`/contexts/${contextId}`}>{t('@app.threads.backToContext')}</Link>
           <ErrorNotice error={query.error} />
           {query.isPending && <Skeleton lines={6} heading />}
-          {query.data && (
+          {auth.data?.user && !(query.error instanceof ApiError && [401, 403].includes(query.error.status)) && query.data && (
             <>
               <Stack gap={2}>
                 <Heading level={1}>{query.data.title}</Heading>
