@@ -4,7 +4,7 @@ import { Button } from '@astryxdesign/core/Button';
 import { EmptyState } from '@astryxdesign/core/EmptyState';
 import { Skeleton as AstryxSkeleton } from '@astryxdesign/core/Skeleton';
 import { Stack } from '@astryxdesign/core/Stack';
-import { googleLoginUrl } from '../api/auth';
+import { googleLoginUrl, saveLoginFragment } from '../api/auth';
 import { useI18n } from '../i18n';
 
 export function Skeleton({ lines = 3, heading = false }: { lines?: number; heading?: boolean }) {
@@ -34,11 +34,12 @@ export function LoadingList({ rows = 3 }: { rows?: number }) {
 export function SignedOutNotice() {
   const location = useLocation();
   const { t } = useI18n();
+  const redirect = location.pathname + location.search + location.hash;
   return (
     <EmptyState
       title={t('@app.auth.signedOutTitle')}
       description={t('@app.auth.signedOutDescription')}
-      actions={<Button label={t('@app.auth.signInWithGoogle')} variant="primary" href={googleLoginUrl(location.pathname + location.search + location.hash)} />}
+      actions={<Button label={t('@app.auth.signInWithGoogle')} variant="primary" href={googleLoginUrl(redirect)} onClick={() => saveLoginFragment(redirect)} />}
     />
   );
 }

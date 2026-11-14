@@ -6,7 +6,7 @@ import { Button } from '@astryxdesign/core/Button';
 import { Skeleton } from '@astryxdesign/core/Skeleton';
 import { Stack } from '@astryxdesign/core/Stack';
 import { Text } from '@astryxdesign/core/Text';
-import { fetchMe, googleLoginUrl, logout, type SessionUser } from '../api/auth';
+import { fetchMe, googleLoginUrl, logout, saveLoginFragment, type SessionUser } from '../api/auth';
 import { useI18n } from '../i18n';
 import { ErrorNotice } from './feedback';
 
@@ -35,7 +35,8 @@ export function useAuthSession() {
 export function LoginButton() {
   const location = useLocation();
   const { t } = useI18n();
-  return <Button label={t('@app.auth.signIn')} variant="primary" size="sm" href={googleLoginUrl(location.pathname + location.search + location.hash)} />;
+  const redirect = location.pathname + location.search + location.hash;
+  return <Button label={t('@app.auth.signIn')} variant="primary" size="sm" href={googleLoginUrl(redirect)} onClick={() => saveLoginFragment(redirect)} />;
 }
 
 export function AuthStatus() {

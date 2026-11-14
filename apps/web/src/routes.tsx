@@ -3,7 +3,9 @@ import { AppShell } from './components/app-shell';
 import { ContextListPage, ContextCreatePage, ContextDetailPage, ThreadDetailPage } from './pages/context-pages';
 import { KeysPage } from './pages/keys-page';
 import { TemporaryContextPage } from './pages/temporary-context-page';
+import { restoreLoginFragment } from './api/auth';
 function Layout({ children }: { children: React.ReactNode }) { return <AppShell>{children}</AppShell>; }
+restoreLoginFragment();
 export const router = createBrowserRouter([
   { path: '/', element: <Layout><TemporaryContextPage /></Layout> },
   { path: '/contexts', element: <Layout><ContextListPage /></Layout> },
