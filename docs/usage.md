@@ -18,19 +18,16 @@ access. Temporary Contexts are separate from account documents and have no Threa
 
 ## Quick start in the Web app
 
-Open the app's home page `/` (legacy `/clipboard` also works) and choose **Use manually**.
-Enter a passphrase of 8–128 characters or choose **Create with a random passphrase**.
-The first use creates a Temporary Context; the same passphrase opens it again.
+Open the app's home page `/` (legacy `/clipboard` also works). Choose **Create with a random passphrase**, or enter an 8–128-character passphrase to join an existing context. If no active context uses that passphrase, choose **Create with this passphrase** to start a blank document.
 
 - **Copy passphrase** copies only the access passphrase.
-- **Copy Prompt** copies instructions with the passphrase and REST commands for an
-  agent to read and append content. **Connect an agent** also offers a prompt to get started.
+- **Copy link** copies the full URL, including the passphrase in its fragment.
+- **Copy agent prompt** copies instructions for reading and appending to the current context. The **Agent quick-start guide** on the home page offers a prompt to create or open a context.
 - **Add content** appends text; **Edit content** replaces the existing text, with
   **Save changes** and **Cancel editing**. Saving an empty document clears it.
+- **Leave context** returns to the home page. Save the link or passphrase to reopen the document.
 
-Anyone with the passphrase can read and modify the content. Prefer a generated
-passphrase and keep it safe: leaving the Context requires entering it again, and
-passphrases are not put in URLs. Content expires after 7 days without access. Successful opens, reads, appends,
+Anyone with the passphrase or the full share link can read and modify the content. Content expires after 7 days without access. Successful opens, reads, appends,
 and edits renew the deadline to 7 days from that access, including webpage polling.
 Reading only renews the deadline; it does not change the content version or edit timestamp.
 Expired records are deleted at server startup and every 24 hours while the server runs,
