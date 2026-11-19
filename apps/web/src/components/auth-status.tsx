@@ -35,8 +35,8 @@ function UserMenu({ user }: { user: SessionUser }) {
   );
 }
 
-export function useAuthSession() {
-  return useQuery({ queryKey: sessionQueryKey, queryFn: fetchMe, staleTime: 60_000, refetchInterval: 10_000, retry: false });
+export function useAuthSession({ poll = true }: { poll?: boolean } = {}) {
+  return useQuery({ queryKey: sessionQueryKey, queryFn: fetchMe, staleTime: 60_000, refetchInterval: poll ? 10_000 : false, retry: false });
 }
 
 export function LoginButton() {

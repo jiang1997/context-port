@@ -10,108 +10,25 @@ import { Heading, Text } from '@astryxdesign/core/Text';
 import { TextArea } from '@astryxdesign/core/TextArea';
 import { TextInput } from '@astryxdesign/core/TextInput';
 import { ApiError, apiRequest } from '../api/client';
+import { useAuthSession } from '../components/auth-status';
 import { copyTextToClipboard } from '../components/copy-context-id';
 import { ErrorNotice, Skeleton } from '../components/feedback';
 import { MarkdownContent } from '../components/markdown-content';
-import { translate, useI18n, type AppLocale, type AppMessageKey } from '../i18n';
-import { buildTemporaryContextShareUrl, readTemporaryContextPassphrase, temporaryContextHash } from '../lib/temporary-context-url';
+import { TemporaryContextExpiry } from '../components/temporary-context-expiry';
+import { TemporaryContextShare } from '../components/temporary-context-share';
+import { useI18n, type AppMessageKey } from '../i18n';
+import { buildTemporaryContextAgentGuide, resolveTemporaryContextApiBase, validateAgentGuidePassphrase } from '../lib/temporary-context-agent';
+import { readTemporaryContextPassphrase, temporaryContextHash } from '../lib/temporary-context-url';
+
+export {
+  buildClipboardAgentGuide,
+  buildClipboardAgentInstructions,
+  buildTemporaryContextAgentGuide,
+  buildTemporaryContextAgentInstructions,
+  validateAgentGuidePassphrase,
+} from '../lib/temporary-context-agent';
 
 type GeneratedTemporaryContext = TemporaryContext & { passphrase: string };
-
-function resolveTemporaryContextApiBase(): string {
-  const configured = import.meta.env.VITE_API_BASE_URL as string | undefined;
-  if (configured?.startsWith('http')) return configured.replace(/\/$/, '');
-  const pathBase = configured && configured.startsWith('/') ? configured : '/api/v1';
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    return `${window.location.origin}${pathBase}`;
-  }
-  return pathBase;
-}
-
-function shellQuotedJson(payload: string): string {
-  return `'${payload.replace(/'/g, `'\"'\"'`)}'`;
-}
-
-/**
- * Instructions copied for an agent to read + append one Temporary Context. The
- * prose follows `locale` (defaults to English, which the tests assert on); the
- * curl commands are language-neutral.
- */
-export function buildTemporaryContextAgentInstructions(passphrase: string, apiBase: string, expiresAt?: string, locale: AppLocale = 'en'): string {
-  const t = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values);
-  const readPayload = shellQuotedJson(JSON.stringify({ passphrase }));
-  const appendPayload = shellQuotedJson(JSON.stringify({ passphrase, content: 'YOUR TEXT HERE' }));
-  return [
-    t('@app.agent.instructions.intro'),
-    '',
-    t('@app.agent.instructions.passphrase', { passphrase }),
-    t('@app.agent.instructions.apiBase', { apiBase }),
-    ...(expiresAt ? [t('@app.agent.instructions.expires', { expires: expiresAt })] : []),
-    '',
-    t('@app.agent.instructions.readHeading'),
-    `curl -s -X POST "${apiBase}/temporary-contexts/read" -H "Content-Type: application/json" -d ${readPayload}`,
-    '',
-    t('@app.agent.instructions.appendHeading'),
-    `curl -s -X POST "${apiBase}/temporary-contexts/append" -H "Content-Type: application/json" -d ${appendPayload}`,
-    '',
-    t('@app.agent.instructions.notesHeading'),
-    t('@app.agent.instructions.note1'),
-    t('@app.agent.instructions.note2'),
-    t('@app.agent.instructions.note3'),
-  ].join('\n');
-}
-
-/** Leave the passphrase empty to let the agent generate one; otherwise use it verbatim. */
-export function validateAgentGuidePassphrase(passphrase: string): AppMessageKey | null {
-  if (passphrase.length > 0 && passphrase.length < 8) return '@app.temp.passphraseMin';
-  if (passphrase.length > 128) return '@app.temp.passphraseMax';
-  return null;
-}
-
-/** Localised guide for a supplied passphrase, or for an agent to generate one. */
-export function buildTemporaryContextAgentGuide(apiBase: string, locale: AppLocale = 'en', passphrase = ''): string {
-  const t = (key: Parameters<typeof translate>[1], values?: Record<string, string | number>) => translate(locale, key, values);
-  const credential = passphrase || 'YOUR PASSPHRASE';
-  const readPayload = shellQuotedJson(JSON.stringify({ passphrase: credential }));
-  const appendPayload = shellQuotedJson(JSON.stringify({ passphrase: credential, content: 'YOUR TEXT HERE' }));
-  return [
-    t('@app.agent.guide.intro'),
-    '',
-    t('@app.agent.guide.apiBase', { apiBase }),
-    '',
-    ...(passphrase ? [
-      t('@app.agent.instructions.passphrase', { passphrase }),
-      '',
-      t('@app.agent.guide.openStep'),
-      `curl -s -X POST "${apiBase}/temporary-contexts/open" -H "Content-Type: application/json" -d ${readPayload}`,
-      t('@app.agent.guide.openResult'),
-    ] : [
-      t('@app.agent.guide.step1'),
-      `curl -s -X POST "${apiBase}/temporary-contexts/generate"`,
-      t('@app.agent.guide.step1Result'),
-      t('@app.agent.guide.generatedNext'),
-      '',
-      t('@app.agent.guide.orOpen'),
-      `curl -s -X POST "${apiBase}/temporary-contexts/open" -H "Content-Type: application/json" -d ${readPayload}`,
-    ]),
-    '',
-    t('@app.agent.guide.step2'),
-    `curl -s -X POST "${apiBase}/temporary-contexts/read" -H "Content-Type: application/json" -d ${readPayload}`,
-    '',
-    t('@app.agent.guide.step3'),
-    `curl -s -X POST "${apiBase}/temporary-contexts/append" -H "Content-Type: application/json" -d ${appendPayload}`,
-    '',
-    t('@app.agent.guide.rulesHeading'),
-    t('@app.agent.guide.rule1'),
-    t('@app.agent.guide.rule2'),
-    t('@app.agent.guide.rule3'),
-    t('@app.agent.guide.rule4'),
-  ].join('\n');
-}
-
-// Backwards-compatible aliases
-export const buildClipboardAgentInstructions = buildTemporaryContextAgentInstructions;
-export const buildClipboardAgentGuide = buildTemporaryContextAgentGuide;
 
 const temporaryContextKey = (passphrase: string) => ['temporary-context', passphrase] as const;
 
@@ -249,7 +166,21 @@ function TemporaryContextLaunch({ invalidLinkError, onOpen }: {
         </section>
       </div>
       <AgentQuickStart />
+      <TemporaryContextAccountHint />
     </div>
+  );
+}
+
+function TemporaryContextAccountHint() {
+  const { t } = useI18n();
+  const { data, isError } = useAuthSession({ poll: false });
+  if (!data?.user || isError) return null;
+
+  return (
+    <aside className="temporary-account-hint">
+      <Text type="supporting">{t('@app.temp.accountHint')}</Text>
+      <Button href="/contexts" label={t('@app.temp.accountContexts')} variant="ghost" size="sm" />
+    </aside>
   );
 }
 
@@ -258,6 +189,7 @@ function AgentQuickStart() {
   const [passphrase, setPassphrase] = useState('');
   const [error, setError] = useState<AppMessageKey | null>(null);
   const [copied, setCopied] = useState(false);
+  const [manualPrompt, setManualPrompt] = useState<string | null>(null);
 
   useEffect(() => {
     if (!copied) return;
@@ -270,10 +202,12 @@ function AgentQuickStart() {
     const validationError = validateAgentGuidePassphrase(passphrase);
     setError(validationError);
     setCopied(false);
+    setManualPrompt(null);
     if (validationError) return;
-    const ok = await copyTextToClipboard(buildTemporaryContextAgentGuide(resolveTemporaryContextApiBase(), locale, passphrase));
+    const prompt = buildTemporaryContextAgentGuide(resolveTemporaryContextApiBase(), locale, passphrase);
+    const ok = await copyTextToClipboard(prompt);
     setCopied(ok);
-    if (!ok) setError('@app.temp.guideCopyFailed');
+    if (!ok) setManualPrompt(prompt);
   }
 
   return (
@@ -287,7 +221,7 @@ function AgentQuickStart() {
               label={t('@app.temp.passphrase')}
               isOptional
               value={passphrase}
-              onChange={value => { setPassphrase(value); setError(null); setCopied(false); }}
+              onChange={value => { setPassphrase(value); setError(null); setCopied(false); setManualPrompt(null); }}
               placeholder={t('@app.temp.guidePassphrasePlaceholder')}
               description={t('@app.temp.guidePassphraseLengthHint')}
               autoComplete="off"
@@ -297,6 +231,15 @@ function AgentQuickStart() {
             <div>
               <Button label={copied ? t('@app.temp.copiedGuide') : t('@app.temp.copyGuide')} variant="primary" type="submit" />
             </div>
+            {manualPrompt && (
+              <>
+                <Text type="supporting" role="alert">{t('@app.temp.copyManual')}</Text>
+                <label className="temporary-share-field">
+                  {t('@app.temp.setupPrompt')}
+                  <textarea rows={8} value={manualPrompt} readOnly onFocus={event => event.currentTarget.select()} />
+                </label>
+              </>
+            )}
           </Stack>
         </form>
         <List listStyle="decimal">
@@ -311,7 +254,7 @@ function AgentQuickStart() {
 }
 
 function TemporaryContextWorkspace({ passphrase, onLeave }: { passphrase: string; onLeave: () => void }) {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const queryClient = useQueryClient();
   const [addition, setAddition] = useState('');
   const [additionError, setAdditionError] = useState(false);
@@ -327,8 +270,11 @@ function TemporaryContextWorkspace({ passphrase, onLeave }: { passphrase: string
   async function cacheWrite(data: TemporaryContext) {
     // Abort any in-flight read so it cannot restore content from before the write.
     await queryClient.cancelQueries({ queryKey });
-    queryClient.setQueryData<TemporaryContext>(queryKey, current =>
-      current && current.version > data.version ? current : data);
+    queryClient.setQueryData<TemporaryContext>(queryKey, current => {
+      if (!current || current.version < data.version) return data;
+      if (current.version === data.version && Date.parse(current.expiresAt) <= Date.parse(data.expiresAt)) return data;
+      return current;
+    });
   }
 
   const append = useMutation({
@@ -413,23 +359,19 @@ function TemporaryContextWorkspace({ passphrase, onLeave }: { passphrase: string
     <div className="temporary-workspace">
       <header className="temporary-workspace-header">
         <div className="temporary-workspace-context">
-          <Button label={t('@app.temp.leave')} variant="ghost" size="sm" isDisabled={saving} onClick={onLeave} />
-          <div className="temporary-workspace-passphrase">
-            <Text type="supporting">{t('@app.temp.currentPassphrase')}</Text>
-            <Code>{passphrase}</Code>
+          <div className="temporary-workspace-identity">
+            <Button label={t('@app.temp.leave')} variant="ghost" size="sm" isDisabled={saving} onClick={onLeave} />
+            {data && !unavailable && (
+              <div className="temporary-workspace-passphrase">
+                <Text type="supporting">{t('@app.temp.currentPassphrase')}</Text>
+                <code>{passphrase}</code>
+              </div>
+            )}
           </div>
+          {data && !unavailable && <TemporaryContextExpiry expiresAt={data.expiresAt} version={data.version} />}
         </div>
-        {data && !unavailable && (
-          <>
-            <Text type="supporting">
-              {t('@app.temp.expires', {
-                date: new Date(data.expiresAt).toLocaleString(locale),
-                version: data.version,
-              })}
-            </Text>
-            <TemporaryContextShare passphrase={passphrase} expiresAt={data.expiresAt} />
-          </>
-        )}
+        {data && !unavailable && <TemporaryContextShare passphrase={passphrase} expiresAt={data.expiresAt} />}
+        <TemporaryContextAccountHint />
       </header>
       {read.isPending && <Skeleton lines={4} heading />}
       {read.error && (
@@ -502,46 +444,6 @@ function TemporaryContextWorkspace({ passphrase, onLeave }: { passphrase: string
         </article>
       )}
     </div>
-  );
-}
-
-function TemporaryContextShare({ passphrase, expiresAt }: { passphrase: string; expiresAt: string }) {
-  const { t, locale } = useI18n();
-  const [copied, setCopied] = useState<'passphrase' | 'agent' | 'link' | null>(null);
-  const [linkCopyFailed, setLinkCopyFailed] = useState(false);
-  const shareUrl = buildTemporaryContextShareUrl(window.location.href, passphrase);
-
-  useEffect(() => {
-    if (!copied) return;
-    const timer = window.setTimeout(() => setCopied(null), 2000);
-    return () => window.clearTimeout(timer);
-  }, [copied]);
-
-  async function copy(kind: NonNullable<typeof copied>, value: string) {
-    const ok = await copyTextToClipboard(value);
-    setCopied(ok ? kind : null);
-    if (kind === 'link') setLinkCopyFailed(!ok);
-  }
-
-  function copyForAgent() {
-    const prompt = buildTemporaryContextAgentInstructions(passphrase, resolveTemporaryContextApiBase(), expiresAt, locale);
-    void copy('agent', prompt);
-  }
-
-  return (
-    <>
-      <div className="temporary-share-actions" role="group" aria-label={t('@app.temp.shareHeading')}>
-        <Button label={copied === 'agent' ? t('@app.temp.copiedForAgent') : t('@app.temp.copyForAgent')} variant="secondary" size="sm" onClick={copyForAgent} tooltip={t('@app.temp.copyForAgentTooltip')} />
-        <Button label={copied === 'link' ? t('@app.temp.copiedLink') : t('@app.temp.copyLink')} variant="secondary" size="sm" onClick={() => void copy('link', shareUrl)} tooltip={t('@app.temp.keepSafe')} />
-        <Button label={copied === 'passphrase' ? t('@app.temp.copiedPassphrase') : t('@app.temp.copyPassphrase')} variant="ghost" size="sm" onClick={() => void copy('passphrase', passphrase)} tooltip={t('@app.temp.copyPassphraseTooltip')} />
-      </div>
-      {linkCopyFailed && (
-        <Stack gap={2}>
-          <Text type="supporting" role="alert">{t('@app.temp.copyLinkFailed')}</Text>
-          <TextInput label={t('@app.temp.shareLink')} value={shareUrl} isReadOnly />
-        </Stack>
-      )}
-    </>
   );
 }
 

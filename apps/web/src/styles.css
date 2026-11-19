@@ -169,9 +169,12 @@ code, .astryx-code {
 }
 
 .temporary-workspace-context,
+.temporary-workspace-identity,
 .temporary-workspace-passphrase,
+.temporary-workspace-status,
 .temporary-share-actions,
-.temporary-document-heading {
+.temporary-document-heading,
+.temporary-account-hint {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -184,8 +187,159 @@ code, .astryx-code {
   justify-content: space-between;
 }
 
+.temporary-workspace-context {
+  position: relative;
+}
+
 .temporary-workspace-passphrase > code {
-  white-space: pre-wrap;
+  box-sizing: border-box;
+  max-inline-size: min(34ch, 40vw);
+  padding-inline: 4px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--color-background-muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.temporary-expiry > summary,
+.temporary-share-examples > summary {
+  cursor: pointer;
+}
+
+.temporary-expiry-details {
+  position: absolute;
+  inset-inline-end: 0;
+  z-index: 2;
+  width: min(320px, 100%);
+  box-sizing: border-box;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-background-popover);
+  box-shadow: 0 4px 16px var(--color-shadow);
+}
+
+.temporary-expiry-details > time {
+  display: block;
+  margin-block-end: 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.temporary-share-trigger {
+  padding: 4px 12px;
+  border: 0;
+  border-radius: var(--radius-lg, 12px);
+  background: transparent;
+  color: var(--color-text-primary);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.temporary-share-trigger:hover {
+  background: var(--color-background-muted);
+}
+
+.temporary-share-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  box-sizing: border-box;
+  width: min(620px, calc(100% - 24px));
+  max-height: calc(100dvh - 32px);
+  padding: clamp(16px, 4vw, 28px);
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-background-card);
+  color: var(--color-text-primary);
+}
+
+.temporary-share-dialog::backdrop {
+  background: rgb(0 0 0 / 35%);
+}
+
+.temporary-share-dialog-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.temporary-share-dialog-heading > h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.temporary-share-contents {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+}
+
+.temporary-share-qr {
+  min-height: 160px;
+  display: grid;
+  place-items: center;
+}
+
+.temporary-share-qr > canvas {
+  width: 160px;
+  max-width: 100%;
+  height: auto;
+  image-rendering: pixelated;
+}
+
+.temporary-share-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.temporary-share-field > :is(input, textarea) {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border-emphasized);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-background-surface);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono, monospace);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.temporary-share-field > textarea {
+  resize: vertical;
+}
+
+.temporary-share-examples > .temporary-share-field {
+  margin-block-start: 8px;
+}
+
+.temporary-live-status {
+  position: absolute;
+  clip-path: inset(50%);
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.temporary-account-hint {
+  gap: 4px 8px;
+  padding: 4px 8px;
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-background-muted);
+}
+
+.temporary-launch > .temporary-account-hint {
+  margin-block-start: 12px;
 }
 
 .temporary-document {
@@ -209,6 +363,17 @@ code, .astryx-code {
 @media (max-width: 640px) {
   .temporary-launch-options {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .temporary-workspace-passphrase > code {
+    max-inline-size: min(18ch, 30vw);
+  }
+
+  .temporary-share-contents {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
   }
 }
 

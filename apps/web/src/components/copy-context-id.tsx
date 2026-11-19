@@ -24,11 +24,18 @@ export async function copyTextToClipboard(text: string): Promise<boolean> {
     textarea.setAttribute('readonly', '');
     textarea.style.position = 'fixed';
     textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    const ok = document.execCommand('copy');
-    document.body.removeChild(textarea);
-    return ok;
+    const activeElement = document.activeElement;
+    const container = activeElement?.closest('dialog[open]') ?? document.body;
+    container.appendChild(textarea);
+    try {
+      textarea.select();
+      return document.execCommand('copy');
+    } finally {
+      textarea.remove();
+      if (activeElement instanceof HTMLElement && activeElement.isConnected) {
+        activeElement.focus({ preventScroll: true });
+      }
+    }
   } catch {
     return false;
   }

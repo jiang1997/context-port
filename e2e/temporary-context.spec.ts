@@ -1,7 +1,8 @@
 import { expect, test, type Dialog, type Page } from '@playwright/test';
+import jsQR from 'jsqr';
 
 async function enterPassphrase(page: Page, passphrase: string) {
-  await page.getByRole('textbox', { name: /^Passphrase\b/ }).fill(passphrase);
+  await page.getByRole('textbox', { name: 'Passphrase Required', exact: true }).fill(passphrase);
   await page.getByRole('button', { name: 'Open', exact: true }).click();
 }
 
@@ -49,7 +50,7 @@ test('temporary content survives edits, reloads, and reopening', async ({ page, 
   const shareUrl = page.url();
   await expect(page.getByRole('textbox', { name: /^Passphrase\b/ })).toHaveCount(0);
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-  await page.getByRole('button', { name: 'Copy link', exact: true }).click();
+  await page.getByRole('button', { name: 'Copy share link', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Link copied', exact: true })).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(shareUrl);
   await expect(page.getByText('No content yet.', { exact: false })).toBeVisible();
@@ -274,14 +275,14 @@ test('mobile launch stacks actions and lets users expand the guide with a keyboa
   await expect(example).toBeVisible();
 
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-  await page.getByRole('button', { name: 'Copy Prompt', exact: true }).click();
+  await page.getByRole('button', { name: 'Copy setup prompt', exact: true }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('POST');
   await page.getByRole('textbox', { name: /^Passphrase\b/ }).last().fill('a-custom-passphrase');
-  await page.getByRole('button', { name: 'Copy Prompt', exact: true }).click();
+  await page.getByRole('button', { name: 'Copy setup prompt', exact: true }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('a-custom-passphrase');
 });
 
-test('the Chinese launch and workspace show the document within the mobile viewport', async ({ page }) => {
+test('the Chinese launch and workspace show the document within the mobile viewport', async ({ page, context }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => localStorage.setItem('contextport.locale', 'zh-CN'));
   await page.goto('/');
@@ -290,6 +291,151 @@ test('the Chinese launch and workspace show the document within the mobile viewp
   const document = page.getByRole('heading', { name: '共享内容' });
   await expect(document).toBeInViewport();
   await expect(page.getByRole('button', { name: '编辑内容', exact: true })).toBeInViewport();
+  await expect(page.getByText('当前口令', { exact: true })).toBeVisible();
   await expect(page.getByRole('textbox', { name: /^访问口令/ })).toHaveCount(0);
   expect(await page.evaluate(() => window.document.documentElement.scrollWidth)).toBe(390);
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.getByRole('button', { name: '复制 Agent 提示词', exact: true }).click();
+  const prompt = await page.evaluate(() => navigator.clipboard.readText());
+  expect(prompt).toContain('你可以通过口令访问这份临时上下文。');
+  expect(prompt).toContain(`${new URL(page.url()).origin}/api/v1/temporary-contexts/read`);
+});
+
+test('the QR code and copied link open the same document in a separate browser session', async ({ page, context, browser }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto('/clipboard#source=qr');
+  const passphrase = `  中文 & # + / ? = % ${Date.now()}  `;
+  await createWithPassphrase(page, passphrase);
+  await page.getByRole('textbox', { name: /^Content to add\b/ }).fill('Shared using a QR code');
+  await page.getByRole('button', { name: 'Add content', exact: true }).click();
+  await expect(page.getByText('Shared using a QR code', { exact: true })).toBeVisible();
+  const shareUrl = page.url();
+  await expect(page.getByRole('button', { name: 'Copy passphrase', exact: true })).toHaveCount(0);
+  await expect(page.locator('.temporary-share-qr canvas')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Copy agent prompt', exact: true }).click();
+  const prompt = await page.evaluate(() => navigator.clipboard.readText());
+  expect(prompt).toContain('You have access to a shared Temporary Context.');
+  expect(prompt).toContain(`${new URL(shareUrl).origin}/api/v1/temporary-contexts/append`);
+  await page.getByRole('button', { name: 'Copy share link', exact: true }).click();
+  const clipboardLink = await page.evaluate(() => navigator.clipboard.readText());
+  expect(clipboardLink).toBe(shareUrl);
+
+  const options = page.getByRole('button', { name: 'Share options', exact: true });
+  await options.focus();
+  await options.press('Enter');
+  const panel = page.getByRole('dialog', { name: 'Share this context' });
+  const qr = panel.getByRole('img', { name: 'QR code for the share link' });
+  await expect(qr).toBeVisible();
+  await expect(panel.getByRole('textbox', { name: 'Access link' })).toHaveValue(shareUrl);
+  await expect(panel.getByRole('textbox', { name: 'Current passphrase' })).toHaveValue(passphrase);
+  await panel.getByRole('button', { name: 'Copy passphrase', exact: true }).click();
+  await expect(panel.getByRole('button', { name: 'Copied passphrase', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(passphrase);
+  const pixels = await qr.evaluate(element => {
+    const canvas = element as HTMLCanvasElement;
+    const { width, height } = canvas;
+    const image = canvas.getContext('2d')!.getImageData(0, 0, width, height);
+    return { data: Array.from(image.data), width, height };
+  });
+  const scannedLink = jsQR(new Uint8ClampedArray(pixels.data), pixels.width, pixels.height)?.data;
+  expect(scannedLink).toBe(clipboardLink);
+  await page.keyboard.press('Escape');
+  await expect(panel).toBeHidden();
+  await expect(options).toBeFocused();
+
+  const recipient = await browser.newContext();
+  try {
+    const otherPage = await recipient.newPage();
+    await otherPage.goto(scannedLink!);
+    await expect(otherPage.getByText('Shared using a QR code', { exact: true })).toBeVisible();
+  } finally {
+    await recipient.close();
+  }
+});
+
+test('clipboard failures expose the original share values and setup prompt for manual copying', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: async () => { throw new Error('Permission denied'); } } });
+    Document.prototype.execCommand = () => false;
+  });
+  await page.goto('/');
+  await page.locator('summary', { hasText: 'Agent quick-start guide' }).click();
+  await page.getByRole('button', { name: 'Copy setup prompt', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'Agent setup prompt' })).toHaveValue(/\/temporary-contexts\/generate/);
+  const passphrase = `manual-copy-${Date.now()}`;
+  await createWithPassphrase(page, passphrase);
+
+  const panel = page.getByRole('dialog', { name: 'Share this context' });
+  const link = page.getByRole('button', { name: 'Copy share link', exact: true });
+  const agent = page.getByRole('button', { name: 'Copy agent prompt', exact: true });
+  const error = panel.getByRole('alert');
+  await link.click();
+  await expect(error).toHaveText('Could not copy automatically. Select the text and copy it manually.');
+  const linkInput = panel.getByRole('textbox', { name: 'Access link' });
+  await expect(linkInput).toHaveValue(page.url());
+  await expect(linkInput).toBeFocused();
+  await panel.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(link).toBeFocused();
+
+  await agent.click();
+  const prompt = panel.getByRole('textbox', { name: 'Agent prompt for this context' });
+  await expect(error).toBeVisible();
+  await expect(prompt).toBeFocused();
+  await expect(prompt).toHaveValue(/\/temporary-contexts\/read/);
+  await panel.getByRole('button', { name: 'Copy passphrase', exact: true }).click();
+  await expect(error).toBeVisible();
+  const passphraseInput = panel.getByRole('textbox', { name: 'Current passphrase' });
+  await expect(passphraseInput).toHaveValue(passphrase);
+  await expect(passphraseInput).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(agent).toBeFocused();
+});
+
+test('the expiry badge and version follow the latest read and write responses', async ({ page }) => {
+  const generated = await page.request.post('/api/v1/temporary-contexts/generate');
+  expect(generated.ok()).toBeTruthy();
+  const { passphrase } = await generated.json() as { passphrase: string };
+  const expiresAt = new Date(Date.now() + 90 * 60_000).toISOString();
+  await page.route('**/temporary-contexts/read', async route => {
+    const response = await route.fetch();
+    await route.fulfill({ response, json: { ...await response.json(), expiresAt } });
+  });
+  await page.goto(`/#passphrase=${passphrase}`);
+  const badge = page.locator('summary', { hasText: 'Expires in 2 hours' });
+  await expect(badge).toBeVisible();
+  await expect(page.getByText('Version 1', { exact: true })).toBeVisible();
+  await badge.click();
+  await expect(page.locator('time')).toHaveAttribute('datetime', expiresAt);
+  await expect(page.getByText(/Automatic reads while this page is open also renew it/)).toBeVisible();
+  await badge.click();
+  await page.unroute('**/temporary-contexts/read');
+
+  await page.getByRole('textbox', { name: /^Content to add\b/ }).fill('Renewed the deadline');
+  await page.getByRole('button', { name: 'Add content', exact: true }).click();
+  await expect(page.getByText('Version 2', { exact: true })).toBeVisible();
+  await expect(page.locator('summary', { hasText: 'Expires in 7 days' })).toBeVisible();
+});
+
+test('the account hint appears after sign-in and its link protects temporary drafts', async ({ page }) => {
+  await page.goto('/');
+  const accountLink = page.getByRole('link', { name: 'Go to My Contexts' });
+  await expect(page.getByRole('link', { name: 'Sign in', exact: true })).toBeVisible();
+  await expect(accountLink).toHaveCount(0);
+  await page.route('**/api/v1/auth/me', route => route.fulfill({
+    json: { user: { id: 'test-user', name: 'Test User', email: 'test@example.com', avatarUrl: null }, csrfToken: null },
+  }));
+  await page.route('**/api/v1/contexts', route => route.fulfill({ json: [] }));
+  await page.reload();
+  await expect(accountLink).toBeVisible();
+  await createWithPassphrase(page, `signed-in-${Date.now()}`);
+  await expect(accountLink).toBeVisible();
+  const workspace = page.url();
+  const addition = page.getByRole('textbox', { name: /^Content to add\b/ });
+  await addition.fill('Draft on a temporary context');
+  expect(await handleDialog(page, () => accountLink.click(), 'dismiss')).toBe('confirm');
+  await expect(addition).toHaveValue('Draft on a temporary context');
+  await expect(page).toHaveURL(workspace);
+  expect(await handleDialog(page, () => accountLink.click(), 'accept')).toBe('confirm');
+  await expect(page).toHaveURL('/contexts');
 });
