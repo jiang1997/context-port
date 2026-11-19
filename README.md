@@ -13,8 +13,8 @@ Threads are focused documents, not chat messages. Account documents do not expir
 
 ## Get started
 
-Open the Web app and choose **For Humans**, then generate a passphrase or enter your own.
-Add content and use **Copy Prompt** to give an agent access. Anyone with the passphrase can read and modify the content.
+Open the Web app and choose **Create with a random passphrase**, or enter a passphrase to join an existing context.
+Add content and use **Copy agent prompt** to give an agent access. Anyone with the passphrase can read and modify the content.
 
 For persistent documents, sign in with Google and create a Context. Create a personal key on **API Keys** (`/keys`) to connect an agent.
 

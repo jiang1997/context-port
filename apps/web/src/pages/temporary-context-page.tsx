@@ -1,14 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useBlocker, useLocation, useNavigate } from 'react-router-dom';
 import type { TemporaryContext } from '@contextport/contracts';
 import { Button } from '@astryxdesign/core/Button';
-import { Card } from '@astryxdesign/core/Card';
 import { Code } from '@astryxdesign/core/Code';
-import { Layout } from '@astryxdesign/core/Layout';
 import { List, ListItem } from '@astryxdesign/core/List';
 import { Stack } from '@astryxdesign/core/Stack';
-import { Tab, TabList } from '@astryxdesign/core/TabList';
 import { Heading, Text } from '@astryxdesign/core/Text';
 import { TextArea } from '@astryxdesign/core/TextArea';
 import { TextInput } from '@astryxdesign/core/TextInput';
@@ -116,379 +113,435 @@ export function buildTemporaryContextAgentGuide(apiBase: string, locale: AppLoca
 export const buildClipboardAgentInstructions = buildTemporaryContextAgentInstructions;
 export const buildClipboardAgentGuide = buildTemporaryContextAgentGuide;
 
+const temporaryContextKey = (passphrase: string) => ['temporary-context', passphrase] as const;
+
+function passphraseError(passphrase: string): AppMessageKey | null {
+  return passphrase ? validateAgentGuidePassphrase(passphrase) : '@app.temp.passphraseMin';
+}
+
+function requestContext(action: 'open' | 'read', passphrase: string, signal?: AbortSignal) {
+  return apiRequest<TemporaryContext>(`/temporary-contexts/${action}`, {
+    method: 'POST',
+    body: JSON.stringify({ passphrase }),
+    signal: signal ?? null,
+  });
+}
+
+function isMissingContext(error: unknown) {
+  return error instanceof ApiError && error.status === 404;
+}
+
 export function TemporaryContextPage() {
-  const { t, locale } = useI18n();
-  const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
-  const linkPassphrase = readTemporaryContextPassphrase(location.hash);
-  const linkError = linkPassphrase === null ? null
-    : linkPassphrase.length < 8 ? t('@app.temp.passphraseMin')
-    : linkPassphrase.length > 128 ? t('@app.temp.passphraseMax') : null;
-  const passphrase = linkError ? '' : linkPassphrase ?? '';
-  const [entry, setEntry] = useState(passphrase);
-  const [entryError, setEntryError] = useState<string | null>(null);
-  const [addition, setAddition] = useState('');
-  const [additionError, setAdditionError] = useState<string | null>(null);
-  const [edit, setEdit] = useState<{ content: string; version: number } | null>(null);
-  const [copied, setCopied] = useState(false);
-  const [copiedForAgent, setCopiedForAgent] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
-  const [linkCopyFailed, setLinkCopyFailed] = useState(false);
-  const [copiedGuide, setCopiedGuide] = useState(false);
-  const [guidePassphrase, setGuidePassphrase] = useState(passphrase);
-  const [guideError, setGuideError] = useState<AppMessageKey | null>(null);
-  const [activeTab, setActiveTab] = useState<'agent' | 'human'>(linkPassphrase === null ? 'agent' : 'human');
-  const shareUrl = passphrase ? buildTemporaryContextShareUrl(window.location.href, passphrase) : '';
+  const passphrase = readTemporaryContextPassphrase(location.hash);
+  const linkError = passphrase === null ? null : passphraseError(passphrase);
 
   function setUrlPassphrase(value: string | null) {
-    void navigate({ pathname: location.pathname, search: location.search, hash: temporaryContextHash(location.hash, value) });
+    void navigate({
+      pathname: location.pathname,
+      search: location.search,
+      hash: temporaryContextHash(location.hash, value),
+    });
   }
-  useEffect(() => {
-    if (!copiedGuide) return;
-    const timer = window.setTimeout(() => setCopiedGuide(false), 2000);
-    return () => window.clearTimeout(timer);
-  }, [copiedGuide]);
 
-  function prefillGuide(value: string) {
-    setGuidePassphrase(value);
-    setGuideError(null);
-    setCopiedGuide(false);
-  }
-  const read = useQuery({
-    queryKey: ['temporary-context', passphrase],
-    queryFn: () => apiRequest<TemporaryContext>('/temporary-contexts/read', { method: 'POST', body: JSON.stringify({ passphrase }) }),
-    enabled: Boolean(passphrase),
-    retry: false,
-    refetchInterval: query => query.state.error instanceof ApiError && query.state.error.status === 404 ? false : 5000,
-  });
-  const open = useMutation({
-    mutationFn: (value: string) => apiRequest<TemporaryContext>('/temporary-contexts/open', { method: 'POST', body: JSON.stringify({ passphrase: value }) }),
-    onSuccess: (data, value) => {
-      queryClient.setQueryData(['temporary-context', value], data);
-      setEntry(value);
-      setUrlPassphrase(value);
-    },
+  return passphrase !== null && !linkError
+    ? <TemporaryContextWorkspace key={passphrase} passphrase={passphrase} onLeave={() => setUrlPassphrase(null)} />
+    : <TemporaryContextLaunch key={passphrase ?? 'launch'} invalidLinkError={linkError} onOpen={setUrlPassphrase} />;
+}
+
+function TemporaryContextLaunch({ invalidLinkError, onOpen }: {
+  invalidLinkError: AppMessageKey | null;
+  onOpen: (passphrase: string) => void;
+}) {
+  const { t } = useI18n();
+  const queryClient = useQueryClient();
+  const [entry, setEntry] = useState('');
+  const [entryError, setEntryError] = useState(invalidLinkError);
+  const [canCreate, setCanCreate] = useState(false);
+  const entryRequest = useMutation({
+    mutationFn: ({ action, passphrase }: { action: 'open' | 'read'; passphrase: string }) => requestContext(action, passphrase),
   });
   const generate = useMutation({
     mutationFn: () => apiRequest<GeneratedTemporaryContext>('/temporary-contexts/generate', { method: 'POST' }),
-    onSuccess: data => {
-      queryClient.setQueryData(['temporary-context', data.passphrase], data);
-      setUrlPassphrase(data.passphrase);
-    },
   });
+  const isPending = entryRequest.isPending || generate.isPending;
+  const missingEntry = entryRequest.variables?.action === 'read' && isMissingContext(entryRequest.error);
+
+  function openWorkspace(passphrase: string, data: TemporaryContext) {
+    queryClient.setQueryData(temporaryContextKey(passphrase), data);
+    onOpen(passphrase);
+  }
+
+  function submitEntry(action: 'open' | 'read') {
+    if (isPending) return;
+    const error = passphraseError(entry);
+    setEntryError(error);
+    if (error) return;
+    generate.reset();
+    if (action === 'read') setCanCreate(false);
+    entryRequest.mutate({ action, passphrase: entry }, {
+      onSuccess: (data, { passphrase }) => openWorkspace(passphrase, data),
+      onError: error => {
+        if (action === 'read' && isMissingContext(error)) setCanCreate(true);
+      },
+    });
+  }
+
+  function generateContext() {
+    if (isPending) return;
+    entryRequest.reset();
+    setCanCreate(false);
+    generate.mutate(undefined, {
+      onSuccess: data => openWorkspace(data.passphrase, data),
+    });
+  }
+
+  return (
+    <div className="temporary-launch">
+      <header className="temporary-launch-intro">
+        <Heading level={1}>{t('@app.temp.hero')}</Heading>
+        <Text type="body">{t('@app.temp.intro')}</Text>
+        <Text type="supporting">{t('@app.temp.retention')}</Text>
+      </header>
+      <div className="temporary-launch-options">
+        <section className="temporary-launch-option temporary-launch-create">
+          <Stack gap={3}>
+            <Heading level={2}>{t('@app.temp.createHeading')}</Heading>
+            <Text type="supporting">{t('@app.temp.createHint')}</Text>
+            <div>
+              <Button label={t('@app.temp.generate')} variant="primary" isLoading={generate.isPending} isDisabled={isPending} onClick={generateContext} />
+            </div>
+            <ErrorNotice error={generate.error} />
+          </Stack>
+        </section>
+        <section className="temporary-launch-option">
+          <Stack gap={3}>
+            <Heading level={2}>{t('@app.temp.joinHeading')}</Heading>
+            <form onSubmit={event => { event.preventDefault(); submitEntry('read'); }}>
+              <div className="temporary-launch-entry">
+                <TextInput
+                  label={t('@app.temp.passphrase')}
+                  value={entry}
+                  onChange={value => {
+                    setEntry(value);
+                    setEntryError(null);
+                    setCanCreate(false);
+                    entryRequest.reset();
+                  }}
+                  isDisabled={isPending}
+                  isRequired
+                  placeholder={t('@app.temp.passphrasePlaceholder')}
+                  autoComplete="off"
+                  {...(entryError ? { status: { type: 'error' as const, message: t(entryError) } } : {})}
+                />
+                <Button label={t('@app.temp.enter')} variant="secondary" type="submit" isLoading={entryRequest.isPending && entryRequest.variables.action === 'read'} isDisabled={isPending} />
+              </div>
+            </form>
+            {missingEntry && <Text type="supporting" role="alert">{t('@app.temp.entryUnavailable')}</Text>}
+            {canCreate && (
+              <div>
+                <Button label={t('@app.temp.createWithPassphrase')} variant="secondary" isLoading={entryRequest.isPending} isDisabled={isPending} onClick={() => submitEntry('open')} />
+              </div>
+            )}
+            {!missingEntry && <ErrorNotice error={entryRequest.error} />}
+          </Stack>
+        </section>
+      </div>
+      <AgentQuickStart />
+    </div>
+  );
+}
+
+function AgentQuickStart() {
+  const { t, locale } = useI18n();
+  const [passphrase, setPassphrase] = useState('');
+  const [error, setError] = useState<AppMessageKey | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+
+  async function copyGuide(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const validationError = validateAgentGuidePassphrase(passphrase);
+    setError(validationError);
+    setCopied(false);
+    if (validationError) return;
+    const ok = await copyTextToClipboard(buildTemporaryContextAgentGuide(resolveTemporaryContextApiBase(), locale, passphrase));
+    setCopied(ok);
+    if (!ok) setError('@app.temp.guideCopyFailed');
+  }
+
+  return (
+    <details className="temporary-guide">
+      <summary>{t('@app.temp.guideHeading')}</summary>
+      <Stack gap={3}>
+        <Text type="supporting">{t('@app.temp.guideIntro')}</Text>
+        <form onSubmit={event => void copyGuide(event)}>
+          <Stack gap={3}>
+            <TextInput
+              label={t('@app.temp.passphrase')}
+              isOptional
+              value={passphrase}
+              onChange={value => { setPassphrase(value); setError(null); setCopied(false); }}
+              placeholder={t('@app.temp.guidePassphrasePlaceholder')}
+              description={t('@app.temp.guidePassphraseLengthHint')}
+              autoComplete="off"
+              {...(error ? { status: { type: 'error' as const, message: t(error) } } : {})}
+            />
+            {copied && <Text type="supporting" role="status">{t('@app.temp.guideCopiedHint')}</Text>}
+            <div>
+              <Button label={copied ? t('@app.temp.copiedGuide') : t('@app.temp.copyGuide')} variant="primary" type="submit" />
+            </div>
+          </Stack>
+        </form>
+        <List listStyle="decimal">
+          <ListItem label={<Text type="body">{t('@app.temp.guideGenerate')} <Code>POST /temporary-contexts/generate</Code></Text>} />
+          <ListItem label={<Text type="body">{t('@app.temp.guideOpen')} <Code>POST /temporary-contexts/open</Code></Text>} />
+          <ListItem label={<Text type="body">{t('@app.temp.guideRead')} <Code>POST /temporary-contexts/read</Code></Text>} />
+          <ListItem label={<Text type="body">{t('@app.temp.guideAppend')} <Code>POST /temporary-contexts/append</Code></Text>} />
+        </List>
+      </Stack>
+    </details>
+  );
+}
+
+function TemporaryContextWorkspace({ passphrase, onLeave }: { passphrase: string; onLeave: () => void }) {
+  const { t, locale } = useI18n();
+  const queryClient = useQueryClient();
+  const [addition, setAddition] = useState('');
+  const [additionError, setAdditionError] = useState(false);
+  const [edit, setEdit] = useState<{ content: string; originalContent: string; version: number } | null>(null);
+  const queryKey = temporaryContextKey(passphrase);
+  const read = useQuery({
+    queryKey,
+    queryFn: ({ signal }) => requestContext('read', passphrase, signal),
+    retry: false,
+    refetchInterval: query => isMissingContext(query.state.error) ? false : 5000,
+  });
+
+  async function cacheWrite(data: TemporaryContext) {
+    // Abort any in-flight read so it cannot restore content from before the write.
+    await queryClient.cancelQueries({ queryKey });
+    queryClient.setQueryData<TemporaryContext>(queryKey, current =>
+      current && current.version > data.version ? current : data);
+  }
+
   const append = useMutation({
     mutationFn: (content: string) => apiRequest<TemporaryContext>('/temporary-contexts/append', {
       method: 'POST', body: JSON.stringify({ passphrase, content }),
     }),
-    onSuccess: async () => { setAddition(''); setAdditionError(null); await read.refetch(); },
+    onSuccess: async data => {
+      await cacheWrite(data);
+      setAddition('');
+    },
   });
   const update = useMutation({
     mutationFn: (draft: { content: string; version: number }) => apiRequest<TemporaryContext>('/temporary-contexts/update', {
       method: 'POST', body: JSON.stringify({ passphrase, content: draft.content, expectedVersion: draft.version }),
     }),
-    onSuccess: data => {
-      queryClient.setQueryData(['temporary-context', passphrase], data);
+    onSuccess: async data => {
+      await cacheWrite(data);
       setEdit(null);
-      void read.refetch();
     },
     onError: () => { void read.refetch(); },
   });
-  const editConflict = (update.error instanceof ApiError && update.error.status === 409)
-    || (edit !== null && read.data !== undefined && edit.version !== read.data.version);
-  const switching = open.isPending || generate.isPending;
-  const entryDisabled = switching || update.isPending || append.isPending;
-
-  function confirmSwitch() {
-    const hasDraft = Boolean(addition) || (edit !== null && edit.content !== read.data?.content);
-    return !hasDraft || window.confirm(t('@app.temp.confirmSwitch'));
-  }
-
-  function generateContext() {
-    if (entryDisabled || !confirmSwitch()) return;
-    open.reset();
-    setEntryError(null);
-    generate.mutate();
-  }
-
-  // The URL is the credential source for refreshes, shared links, and history navigation.
-  useEffect(() => {
-    if (linkPassphrase !== null) setActiveTab('human');
-    setEntry(passphrase);
-    setEntryError(null);
-    prefillGuide(passphrase);
-    setAddition('');
-    setAdditionError(null);
-    setEdit(null);
-    open.reset();
-    generate.reset();
-    update.reset();
-    append.reset();
-    setCopied(false);
-    setCopiedForAgent(false);
-    setCopiedLink(false);
-    setLinkCopyFailed(false);
-  }, [location.hash]);
+  const saving = update.isPending || append.isPending;
+  const hasDraft = Boolean(addition) || (edit !== null && edit.content !== edit.originalContent);
+  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
+    (hasDraft || saving) && (
+      currentLocation.pathname !== nextLocation.pathname ||
+      readTemporaryContextPassphrase(nextLocation.hash) !== passphrase
+    ));
+  const handledNavigation = useRef<typeof blocker>(null);
 
   useEffect(() => {
-    if (!copiedLink) return;
-    const timer = window.setTimeout(() => setCopiedLink(false), 2000);
-    return () => window.clearTimeout(timer);
-  }, [copiedLink]);
+    if (blocker.state !== 'blocked' || handledNavigation.current === blocker) return;
+    // Router transitions can leave this blocker visible for another render.
+    handledNavigation.current = blocker;
+    if (!saving && (!hasDraft || window.confirm(t('@app.temp.confirmSwitch')))) {
+      setAddition('');
+      setAdditionError(false);
+      setEdit(null);
+      blocker.proceed();
+    } else {
+      blocker.reset();
+    }
+  }, [blocker, hasDraft, saving, t]);
 
-  async function copyLink() {
-    const ok = await copyTextToClipboard(shareUrl);
-    setCopiedLink(ok);
-    setLinkCopyFailed(!ok);
-  }
+  useEffect(() => {
+    if (!hasDraft && !saving) return;
+    function beforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = true;
+    }
+    window.addEventListener('beforeunload', beforeUnload);
+    return () => window.removeEventListener('beforeunload', beforeUnload);
+  }, [hasDraft, saving]);
+
+  const data = read.data;
+  const unavailable = isMissingContext(read.error);
+  const versionConflict = update.error instanceof ApiError && update.error.status === 409;
+  const editConflict = versionConflict || (edit !== null && data !== undefined && edit.version !== data.version);
 
   function startEditing() {
-    if (!read.data) return;
+    if (!data || unavailable || saving) return;
     update.reset();
-    setEdit({ content: read.data.content, version: read.data.version });
+    setEdit({ content: data.content, originalContent: data.content, version: data.version });
   }
 
   function submitEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (edit && !editConflict && !update.isPending && !switching) update.mutate(edit);
+    if (edit && !editConflict && !saving && !unavailable) update.mutate(edit);
   }
-  function submitEntry(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (entryDisabled) return;
-    // TextInput cannot carry the native minLength/maxLength constraints
-    // (the Astryx component maps isRequired to aria-required only), so the
-    // 8–128 char contract is enforced here with visible feedback instead
-    // of silently ignoring the submit.
-    if (entry.length < 8) {
-      setEntryError(t('@app.temp.passphraseMin'));
-      return;
-    }
-    if (entry.length > 128) {
-      setEntryError(t('@app.temp.passphraseMax'));
-      return;
-    }
-    setEntryError(null);
-    if (entry !== passphrase && !confirmSwitch()) return;
-    generate.reset();
-    open.mutate(entry);
-  }
+
   function submitAddition(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (switching || append.isPending) return;
+    if (saving || unavailable) return;
     if (!addition) {
-      setAdditionError(t('@app.temp.addEmpty'));
+      setAdditionError(true);
       return;
     }
-    setAdditionError(null);
     append.mutate(addition);
   }
-  async function copyPassphrase() {
-    const ok = await copyTextToClipboard(passphrase);
-    if (ok) setCopied(true);
-  }
-  async function copyForAgent() {
-    const instructions = buildTemporaryContextAgentInstructions(passphrase, resolveTemporaryContextApiBase(), read.data?.expiresAt, locale);
-    const ok = await copyTextToClipboard(instructions);
-    if (ok) setCopiedForAgent(true);
-  }
-  async function copyAgentGuide() {
-    const error = validateAgentGuidePassphrase(guidePassphrase);
-    setGuideError(error);
-    setCopiedGuide(false);
-    if (error) return;
-    const ok = await copyTextToClipboard(buildTemporaryContextAgentGuide(resolveTemporaryContextApiBase(), locale, guidePassphrase));
-    setCopiedGuide(ok);
-    if (!ok) setGuideError('@app.temp.guideCopyFailed');
-  }
+
   return (
-    <Layout
-      height="auto"
-      contentWidth={1120}
-      content={
-        <Stack gap={4}>
-          <Stack gap={2}>
-            <Heading level={1}>{t('@app.temp.title')}</Heading>
-            <Text type="body">{t('@app.temp.intro')}</Text>
-            <Text type="supporting">{t('@app.temp.retention')}</Text>
-          </Stack>
-          <TabList value={activeTab} onChange={val => setActiveTab(val as 'agent' | 'human')} hasDivider role="tablist">
-            <Tab value="agent" label={t('@app.temp.tabAgents')} />
-            <Tab value="human" label={t('@app.temp.tabHumans')} />
-          </TabList>
-          {activeTab === 'human' ? (
+    <div className="temporary-workspace">
+      <header className="temporary-workspace-header">
+        <div className="temporary-workspace-context">
+          <Button label={t('@app.temp.leave')} variant="ghost" size="sm" isDisabled={saving} onClick={onLeave} />
+          <div className="temporary-workspace-passphrase">
+            <Text type="supporting">{t('@app.temp.currentPassphrase')}</Text>
+            <Code>{passphrase}</Code>
+          </div>
+        </div>
+        {data && !unavailable && (
+          <>
+            <Text type="supporting">
+              {t('@app.temp.expires', {
+                date: new Date(data.expiresAt).toLocaleString(locale),
+                version: data.version,
+              })}
+            </Text>
+            <TemporaryContextShare passphrase={passphrase} expiresAt={data.expiresAt} />
+          </>
+        )}
+      </header>
+      {read.isPending && <Skeleton lines={4} heading />}
+      {read.error && (
+        <Stack gap={2}>
+          {unavailable ? (
             <>
-              <Card>
-                <Stack gap={3}>
-                  <Heading level={2}>{t('@app.temp.openHeading')}</Heading>
-                  <form onSubmit={submitEntry}>
-                    <Stack gap={3}>
-                      <TextInput
-                        label={t('@app.temp.passphrase')}
-                        value={entry}
-                        onChange={value => { setEntry(value); setEntryError(null); }}
-                        isDisabled={entryDisabled}
-                        isRequired
-                        placeholder={t('@app.temp.passphrasePlaceholder')}
-                        autoComplete="off"
-                        {...(entryError || linkError ? { status: { type: 'error' as const, message: (entryError || linkError)! } } : {})}
-                      />
-                      <Stack direction="horizontal" gap={3} wrap="wrap">
-                        <Button label={t('@app.temp.enter')} variant="primary" type="submit" isLoading={open.isPending} isDisabled={entryDisabled} />
-                        <Button label={t('@app.temp.generate')} variant="secondary" isLoading={generate.isPending} isDisabled={entryDisabled} onClick={generateContext} />
-                      </Stack>
-                    </Stack>
-                  </form>
-                  <Text type="supporting">{t('@app.temp.privacyNote')}</Text>
-                  {passphrase && <Text type="supporting">{t('@app.temp.switchHint')}</Text>}
-                  <ErrorNotice error={open.error ?? generate.error} />
-                </Stack>
-              </Card>
-            {passphrase && (
-              <>
-                <Card>
-                  <Stack gap={3}>
-                    <Heading level={2}>{t('@app.temp.shareHeading')}</Heading>
-                    <Stack direction="horizontal" gap={2} vAlign="center" wrap="wrap">
-                      <Text type="supporting">{t('@app.temp.currentPassphrase')}</Text>
-                      <Text type="code">{passphrase}</Text>
-                      <Button label={copied ? t('@app.temp.copiedPassphrase') : t('@app.temp.copyPassphrase')} variant="secondary" size="sm" onClick={() => void copyPassphrase()} tooltip={t('@app.temp.copyPassphraseTooltip')} />
-                      <Button label={copiedForAgent ? t('@app.temp.copiedForAgent') : t('@app.temp.copyForAgent')} variant="secondary" size="sm" onClick={() => void copyForAgent()} tooltip={t('@app.temp.copyForAgentTooltip')} />
-                    </Stack>
-                    <TextInput label={t('@app.temp.shareLink')} value={shareUrl} isReadOnly />
-                    <div>
-                      <Button label={copiedLink ? t('@app.temp.copiedLink') : t('@app.temp.copyLink')} variant="primary" size="sm" onClick={() => void copyLink()} />
-                    </div>
-                    {linkCopyFailed && <Text type="supporting" role="alert">{t('@app.temp.copyLinkFailed')}</Text>}
-                    <Text type="supporting">{t('@app.temp.keepSafe')}</Text>
-                  </Stack>
-                </Card>
-                {read.error instanceof ApiError && read.error.status === 404 ? (
-                  <Card>
-                    <Stack gap={2}>
-                      <Heading level={2}>{t('@app.temp.linkUnavailable')}</Heading>
-                      <Text type="body">{t('@app.temp.linkUnavailableHint')}</Text>
-                    </Stack>
-                  </Card>
-                ) : <ErrorNotice error={read.error} />}
-                {read.error && <div><Button label={t('@app.temp.retryRead')} variant="secondary" isLoading={read.isFetching} onClick={() => void read.refetch()} /></div>}
-                {read.isPending && <Skeleton lines={4} />}
-                {read.data && !read.error && (
-                  <>
-                    <Text type="supporting">
-                      {t('@app.temp.expires', {
-                        date: new Date(read.data.expiresAt).toLocaleString(locale),
-                        version: read.data.version,
-                      })}
-                    </Text>
-                    <Card>
-                      <Stack gap={2}>
-                        <Heading level={2}>{t('@app.temp.sharedContent')}</Heading>
-                        {edit ? (
-                          <form onSubmit={submitEdit}>
-                            <Stack gap={3}>
-                              <TextArea
-                                label={t('@app.temp.editContent')}
-                                value={edit.content}
-                                onChange={content => setEdit({ ...edit, content })}
-                                isDisabled={update.isPending || switching}
-                                maxLength={100_000}
-                                rows={14}
-                              />
-                              {editConflict && (
-                                <Text type="supporting" role="alert">{t('@app.temp.editConflict')}</Text>
-                              )}
-                              <ErrorNotice error={update.error instanceof ApiError && update.error.status === 409 ? null : update.error} />
-                              <Stack direction="horizontal" gap={3} wrap="wrap">
-                                <Button label={t('@app.temp.saveChanges')} variant="primary" type="submit" isLoading={update.isPending} isDisabled={editConflict || update.isPending || switching} />
-                                <Button label={t('@app.temp.cancelEdit')} variant="secondary" isDisabled={update.isPending} onClick={() => { setEdit(null); update.reset(); }} />
-                              </Stack>
-                              {editConflict && <Heading level={3}>{t('@app.temp.latestContent')}</Heading>}
-                            </Stack>
-                          </form>
-                        ) : (
-                          <div>
-                            <Button label={t('@app.temp.editContent')} variant="secondary" size="sm" isDisabled={append.isPending || switching} onClick={startEditing} />
-                          </div>
-                        )}
-                        {(!edit || editConflict) && (
-                          <>
-                            {read.data.content ? (
-                              <MarkdownContent content={read.data.content} />
-                            ) : (
-                              <Text type="supporting">{t('@app.temp.noContent')}</Text>
-                            )}
-                          </>
-                        )}
-                      </Stack>
-                    </Card>
-                    {!edit && (
-                      <Card>
-                        <form onSubmit={submitAddition}>
-                          <Stack gap={3}>
-                            <TextArea
-                              label={t('@app.temp.addToContext')}
-                              value={addition}
-                              isDisabled={switching || append.isPending}
-                              onChange={value => { setAddition(value); setAdditionError(null); }}
-                              isRequired
-                              maxLength={20_000}
-                              rows={7}
-                              {...(additionError ? { status: { type: 'error' as const, message: additionError } } : {})}
-                            />
-                            <ErrorNotice error={append.error} />
-                            <div>
-                              <Button label={append.isPending ? t('@app.temp.adding') : t('@app.temp.addContent')} variant="primary" type="submit" isLoading={append.isPending} isDisabled={switching || append.isPending} />
-                            </div>
-                          </Stack>
-                        </form>
-                      </Card>
-                    )}
-                  </>
-                )}
-              </>
-            )}
+              <Heading level={data && hasDraft ? 2 : 1}>{t('@app.temp.linkUnavailable')}</Heading>
+              <Text type="body">{t('@app.temp.linkUnavailableHint')}</Text>
             </>
-          ) : (
-            <Stack gap={4}>
-              <Card>
-                <Stack gap={3}>
-                  <Heading level={2}>{t('@app.temp.guideHeading')}</Heading>
-                  <Text type="supporting">{t('@app.temp.guideIntro')}</Text>
-                  <List listStyle="decimal">
-                    <ListItem label={<Text type="body">{t('@app.temp.guideGenerate')} <Code>POST /temporary-contexts/generate</Code></Text>} />
-                    <ListItem label={<Text type="body">{t('@app.temp.guideOpen')} <Code>POST /temporary-contexts/open</Code></Text>} />
-                    <ListItem label={<Text type="body">{t('@app.temp.guideRead')} <Code>POST /temporary-contexts/read</Code></Text>} />
-                    <ListItem label={<Text type="body">{t('@app.temp.guideAppend')} <Code>POST /temporary-contexts/append</Code></Text>} />
-                  </List>
-                  <form onSubmit={event => { event.preventDefault(); void copyAgentGuide(); }}>
-                    <Stack gap={3}>
-                      <TextInput
-                        label={t('@app.temp.passphrase')}
-                        isOptional
-                        value={guidePassphrase}
-                        onChange={value => { setGuidePassphrase(value); setGuideError(null); setCopiedGuide(false); }}
-                        placeholder={t('@app.temp.guidePassphrasePlaceholder')}
-                        description={t('@app.temp.guidePassphraseLengthHint')}
-                        autoComplete="off"
-                        {...(guideError ? { status: { type: 'error' as const, message: t(guideError) } } : {})}
-                      />
-                      {copiedGuide && (
-                        <Text type="supporting" aria-live="polite">
-                          {t('@app.temp.guideCopiedHint')}
-                        </Text>
-                      )}
-                      <div>
-                        <Button label={copiedGuide ? t('@app.temp.copiedGuide') : t('@app.temp.copyGuide')} variant="primary" type="submit" />
-                      </div>
-                    </Stack>
-                  </form>
-                </Stack>
-              </Card>
-            </Stack>
-          )}
+          ) : <ErrorNotice error={read.error} />}
+          <div><Button label={t('@app.temp.retryRead')} variant="secondary" isLoading={read.isFetching} onClick={() => void read.refetch()} /></div>
         </Stack>
-      }
-    />
+      )}
+      {data && (!unavailable || hasDraft) && (
+        <article className="temporary-document">
+          <div className="temporary-document-heading">
+            <Heading level={1}>{t('@app.temp.sharedContent')}</Heading>
+            {!edit && !unavailable && (
+              <Button label={t('@app.temp.editContent')} variant={data.content.trim() ? 'secondary' : 'primary'} size="sm" isDisabled={saving} onClick={startEditing} />
+            )}
+          </div>
+          {edit && (
+            <form onSubmit={submitEdit}>
+              <Stack gap={3}>
+                <TextArea
+                  label={t('@app.temp.editContent')}
+                  value={edit.content}
+                  onChange={content => setEdit({ ...edit, content })}
+                  isDisabled={saving}
+                  maxLength={100_000}
+                  rows={14}
+                />
+                {editConflict && <Text type="supporting" role="alert">{t('@app.temp.editConflict')}</Text>}
+                <ErrorNotice error={versionConflict ? null : update.error} />
+                <Stack direction="horizontal" gap={3} wrap="wrap">
+                  <Button label={t('@app.temp.saveChanges')} variant="primary" type="submit" isLoading={update.isPending} isDisabled={editConflict || saving || unavailable} />
+                  <Button label={t('@app.temp.cancelEdit')} variant="secondary" isDisabled={saving} onClick={() => { setEdit(null); update.reset(); }} />
+                </Stack>
+                {editConflict && <Heading level={2}>{t('@app.temp.latestContent')}</Heading>}
+              </Stack>
+            </form>
+          )}
+          {(!edit || editConflict) && (
+            <div className="temporary-document-body">
+              {data.content.trim()
+                ? <MarkdownContent content={data.content} />
+                : <Text type="supporting">{t('@app.temp.noContent')}</Text>}
+            </div>
+          )}
+          {!edit && (
+            <form className="temporary-document-append" onSubmit={submitAddition}>
+              <Stack gap={3}>
+                <TextArea
+                  label={t('@app.temp.addToContext')}
+                  value={addition}
+                  isDisabled={saving}
+                  onChange={value => { setAddition(value); setAdditionError(false); }}
+                  isRequired
+                  maxLength={20_000}
+                  rows={7}
+                  {...(additionError ? { status: { type: 'error' as const, message: t('@app.temp.addEmpty') } } : {})}
+                />
+                <ErrorNotice error={append.error} />
+                <div>
+                  <Button label={append.isPending ? t('@app.temp.adding') : t('@app.temp.addContent')} variant="primary" type="submit" isLoading={append.isPending} isDisabled={saving || unavailable} />
+                </div>
+              </Stack>
+            </form>
+          )}
+        </article>
+      )}
+    </div>
+  );
+}
+
+function TemporaryContextShare({ passphrase, expiresAt }: { passphrase: string; expiresAt: string }) {
+  const { t, locale } = useI18n();
+  const [copied, setCopied] = useState<'passphrase' | 'agent' | 'link' | null>(null);
+  const [linkCopyFailed, setLinkCopyFailed] = useState(false);
+  const shareUrl = buildTemporaryContextShareUrl(window.location.href, passphrase);
+
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(null), 2000);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+
+  async function copy(kind: NonNullable<typeof copied>, value: string) {
+    const ok = await copyTextToClipboard(value);
+    setCopied(ok ? kind : null);
+    if (kind === 'link') setLinkCopyFailed(!ok);
+  }
+
+  function copyForAgent() {
+    const prompt = buildTemporaryContextAgentInstructions(passphrase, resolveTemporaryContextApiBase(), expiresAt, locale);
+    void copy('agent', prompt);
+  }
+
+  return (
+    <>
+      <div className="temporary-share-actions" role="group" aria-label={t('@app.temp.shareHeading')}>
+        <Button label={copied === 'agent' ? t('@app.temp.copiedForAgent') : t('@app.temp.copyForAgent')} variant="secondary" size="sm" onClick={copyForAgent} tooltip={t('@app.temp.copyForAgentTooltip')} />
+        <Button label={copied === 'link' ? t('@app.temp.copiedLink') : t('@app.temp.copyLink')} variant="secondary" size="sm" onClick={() => void copy('link', shareUrl)} tooltip={t('@app.temp.keepSafe')} />
+        <Button label={copied === 'passphrase' ? t('@app.temp.copiedPassphrase') : t('@app.temp.copyPassphrase')} variant="ghost" size="sm" onClick={() => void copy('passphrase', passphrase)} tooltip={t('@app.temp.copyPassphraseTooltip')} />
+      </div>
+      {linkCopyFailed && (
+        <Stack gap={2}>
+          <Text type="supporting" role="alert">{t('@app.temp.copyLinkFailed')}</Text>
+          <TextInput label={t('@app.temp.shareLink')} value={shareUrl} isReadOnly />
+        </Stack>
+      )}
+    </>
   );
 }
 
