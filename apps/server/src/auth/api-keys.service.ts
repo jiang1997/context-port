@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import { apiKeys, type Database } from '@contextport/db';
 import { DATABASE } from '../db/db.module.js';
 import { hashSessionToken } from './auth.constants.js';
@@ -54,7 +54,11 @@ export class ApiKeyService {
       .from(apiKeys)
       .where(and(eq(apiKeys.tokenHash, hashSessionToken(rawKey)), isNull(apiKeys.revokedAt)));
     if (!row) return null;
-    void this.db.update(apiKeys).set({ lastUsedAt: new Date().toISOString() }).where(eq(apiKeys.id, row.id));
+    await this.db.update(apiKeys).set({ lastUsedAt: sql`now()` }).where(and(
+      eq(apiKeys.id, row.id),
+      isNull(apiKeys.revokedAt),
+      or(isNull(apiKeys.lastUsedAt), lt(apiKeys.lastUsedAt, sql`now() - interval '5 minutes'`)),
+    ));
     return row.userId;
   }
 }

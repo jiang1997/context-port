@@ -118,6 +118,11 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('per-user data isolation (phase 
       .send({ name: 'CLI key' }).expect(201);
     const rawKey = issued.body.key as string;
     expect(rawKey.startsWith('cpk_')).toBe(true);
+    const keyId = issued.body.id as string;
+    const keyFilter = eq(apiKeys.id, keyId);
+    const [unusedKey] = await bundle.db.select().from(apiKeys).where(keyFilter);
+    expect(unusedKey?.lastUsedAt).toBeNull();
+
     // REST with the raw key must resolve to Alice's data.
     const bearerList = await request(app.getHttpServer()).get('/api/v1/contexts')
       .set('Authorization', `Bearer ${rawKey}`).expect(200);
@@ -125,6 +130,17 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('per-user data isolation (phase 
     const rows = await bundle.db.select().from(apiKeys);
     expect(rows).toHaveLength(1);
     expect(rows[0]!.tokenHash).toBe(createHash('sha256').update(rawKey).digest('hex'));
+    expect(Date.parse(rows[0]!.lastUsedAt!)).toBeGreaterThan(0);
+
+    const [recentKey] = await bundle.db.update(apiKeys).set({ lastUsedAt: sql`now() - interval '1 minute'` })
+      .where(keyFilter).returning({ lastUsedAt: apiKeys.lastUsedAt });
+    await request(app.getHttpServer()).get('/api/v1/contexts')
+      .set('Authorization', `Bearer ${rawKey}`).expect(200);
+    const [throttledKey] = await bundle.db.select().from(apiKeys).where(keyFilter);
+    expect(throttledKey!.lastUsedAt).toBe(recentKey!.lastUsedAt);
+
+    const [staleKey] = await bundle.db.update(apiKeys).set({ lastUsedAt: sql`now() - interval '6 minutes'` })
+      .where(keyFilter).returning({ lastUsedAt: apiKeys.lastUsedAt });
 
     const client = new Client({ name: 'iso-mcp', version: '1.0.0' });
     const transport = new StreamableHTTPClientTransport(new URL('/mcp', serverUrl), {
@@ -139,6 +155,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('per-user data isolation (phase 
     expect(parsed[0]!.id).toBe(context.id);
 
     const [keyRow] = await bundle.db.select().from(apiKeys).where(eq(apiKeys.tokenHash, hashSessionToken(rawKey)));
+    expect(Date.parse(keyRow!.lastUsedAt!)).toBeGreaterThan(Date.parse(staleKey!.lastUsedAt!));
     await request(app.getHttpServer()).post(`/api/v1/auth/keys/${keyRow!.id}/revoke`)
       .set('Cookie', aliceCookie).set('x-csrf-token', 'csrf-mcp-session-token').expect(204);
     // Revocation kills the credential at the HTTP layer, which the SDK
