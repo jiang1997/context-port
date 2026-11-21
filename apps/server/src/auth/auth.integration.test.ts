@@ -10,6 +10,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { DATABASE } from '../db/db.module.js';
 import { hashSessionToken } from './auth.constants.js';
 import { AuthModule } from './auth.module.js';
+import { SessionService } from './session.service.js';
 import { HttpExceptionFilter } from '../common/filters/http-exception.filter.js';
 
 // Only use a dedicated disposable database; migrations never run against DATABASE_URL here.
@@ -88,4 +89,16 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Google login sessions (phase 1)
       .set('Cookie', 'cp_session=never-issued').expect(200)
       .then(r => expect(r.body.user).toBeNull());
   });
+  it('prunes sessions expired for more than a day', async () => {
+    const user = await createVerifiedUser('prune-user', 'prune@example.com');
+    await bundle.db.insert(sessions).values([
+      { userId: user.id, tokenHash: 'old', createdAt: sql`now() - interval '3 days'`, expiresAt: sql`now() - interval '2 days'` },
+      { userId: user.id, tokenHash: 'recent', createdAt: sql`now() - interval '2 days'`, expiresAt: sql`now() - interval '1 hour'` },
+      { userId: user.id, tokenHash: 'active', expiresAt: sql`now() + interval '1 day'` },
+    ]);
+    await app.get(SessionService).pruneExpired();
+    const remaining = await bundle.db.select({ token: sessions.tokenHash }).from(sessions);
+    expect(remaining.map(row => row.token).sort()).toEqual(['active', 'recent']);
+  });
+
 });

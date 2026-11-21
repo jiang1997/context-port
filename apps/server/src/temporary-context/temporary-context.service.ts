@@ -1,5 +1,5 @@
 import { createHmac, randomBytes } from 'node:crypto';
-import { ConflictException, Inject, Injectable, Logger, NotFoundException, PayloadTooLargeException, type OnModuleInit, type OnModuleDestroy } from '@nestjs/common';
+import { ConflictException, Inject, Injectable, NotFoundException, PayloadTooLargeException } from '@nestjs/common';
 import { and, eq, sql } from 'drizzle-orm';
 import { clipboards, type Database } from '@contextport/db';
 import { PassphraseSchema, TemporaryContextUpdateSchema } from '@contextport/contracts';
@@ -7,50 +7,15 @@ import { DATABASE } from '../db/db.module.js';
 import { getEnvironment } from '../config/environment.js';
 
 const ACCESS_EXPIRY = sql`now() + interval '7 days'`;
-const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const MAX_CONTENT = 100_000;
 
 @Injectable()
-export class TemporaryContextService implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(TemporaryContextService.name);
-  private cleanupTimer?: ReturnType<typeof setTimeout>;
-  private cleanupStopped = false;
-  private cleanupTask?: Promise<void>;
-
-  async onModuleInit() {
-    // Workers use the scheduled handler; no background timers or startup I/O.
-    if (getEnvironment().SERVER_RUNTIME === 'workers') return;
-    await this.runCleanup();
-    this.scheduleCleanup();
-  }
-
-  async onModuleDestroy() {
-    this.cleanupStopped = true;
-    clearTimeout(this.cleanupTimer);
-    await this.cleanupTask;
-  }
+export class TemporaryContextService {
+  constructor(@Inject(DATABASE) private readonly db: Database) {}
 
   async deleteExpired() {
     await this.db.delete(clipboards).where(sql`${clipboards.expiresAt} <= now()`);
   }
-
-  private async runCleanup() {
-    try {
-      await this.deleteExpired();
-    } catch (error) {
-      this.logger.error('Failed to delete expired temporary contexts', error instanceof Error ? error.stack : String(error));
-    }
-  }
-
-  private scheduleCleanup() {
-    if (this.cleanupStopped) return;
-    this.cleanupTimer = setTimeout(() => {
-      this.cleanupTask = this.runCleanup().finally(() => this.scheduleCleanup());
-    }, CLEANUP_INTERVAL_MS);
-    this.cleanupTimer.unref();
-  }
-
-  constructor(@Inject(DATABASE) private readonly db: Database) {}
 
   private hash(passphrase: string) {
     const secret = getEnvironment().CLIPBOARD_SECRET ?? 'contextport-local-development-only-secret';

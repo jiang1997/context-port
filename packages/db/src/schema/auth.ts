@@ -30,6 +30,8 @@ export const sessions = pgTable('sessions', {
   revokedAt: timestamp('revoked_at', { withTimezone: true, mode: 'string' }),
 }, t => [
   uniqueIndex('sessions_token_hash_key').on(t.tokenHash),
+  index('sessions_expires_at_idx').on(t.expiresAt),
+  index('sessions_user_id_idx').on(t.userId),
   check('sessions_expiry_after_creation', sql`${t.expiresAt} > ${t.createdAt}`),
 ]);
 

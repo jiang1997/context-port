@@ -20,13 +20,15 @@ pnpm check:cloudflare
 pnpm deploy:cloudflare
 ```
 
-The deployment script uploads secrets together with the Worker version. It does
-not change the database schema. `wrangler.jsonc` defines the Worker and existing
+The deployment script uploads secrets together with the Worker version. Apply
+pending migrations with `pnpm db:migrate` against the direct database URL before
+deploying. Migration `0006_session_indexes` adds the indexes used for session
+cleanup and user deletion. `wrangler.jsonc` defines the Worker and existing
 Hyperdrive binding; deploying to another account requires replacing both resource
 IDs. The entry point uses TypeScript-compiled JavaScript to preserve Nest decorator
 metadata. Nest initializes during Worker startup, and each invocation creates and
 closes its own database connections. A daily 03:00 UTC Cron Trigger deletes expired
-temporary contexts instead of relying on a long-lived process timer.
+temporary contexts and sessions that have been expired for more than a day.
 
 For local development, provide a `.dev.vars` file and set
 `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` to a local PostgreSQL URL,

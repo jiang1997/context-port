@@ -1,4 +1,4 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, isNull, lt } from 'drizzle-orm';
 import { sessions, users, type Database } from '@contextport/db';
 import { DATABASE } from '../db/db.module.js';

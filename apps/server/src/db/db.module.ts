@@ -1,4 +1,4 @@
-import { Global, Inject, Injectable, Module, type OnModuleDestroy } from '@nestjs/common';
+import { Global, Inject, Injectable, Module, type OnApplicationShutdown } from '@nestjs/common';
 import { createDatabase, type Database } from '@contextport/db';
 import type { Pool } from 'pg';
 import { getEnvironment } from '../config/environment.js';
@@ -11,10 +11,10 @@ const workers = getEnvironment().SERVER_RUNTIME === 'workers';
 const databaseBundle = workers ? undefined : createDatabase(getEnvironment().DATABASE_URL);
 
 @Injectable()
-class DatabaseLifecycle implements OnModuleDestroy {
+class DatabaseLifecycle implements OnApplicationShutdown {
   constructor(@Inject(DATABASE_POOL) private readonly pool: Pool) {}
 
-  async onModuleDestroy() {
+  async onApplicationShutdown() {
     await this.pool.end();
   }
 }

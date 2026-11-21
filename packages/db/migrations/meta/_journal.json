@@ -43,6 +43,13 @@
       "when": 1790670000000,
       "tag": "0005_clipboards",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795300000000,
+      "tag": "0006_session_indexes",
+      "breakpoints": true
     }
   ]
 }

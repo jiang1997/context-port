@@ -7,8 +7,10 @@ import { HealthModule } from './health/health.module.js';
 import { McpModule } from './mcp/mcp.module.js';
 import { BusinessGuard } from './common/business.guard.js';
 import { TemporaryContextModule } from './temporary-context/temporary-context.module.js';
+import { DatabaseMaintenance } from './db/database-maintenance.js';
+
 @Module({
   imports: [DbModule, HealthModule, AuthModule, ContextModule, McpModule, TemporaryContextModule],
-  providers: [{ provide: APP_GUARD, useClass: BusinessGuard }],
+  providers: [DatabaseMaintenance, { provide: APP_GUARD, useClass: BusinessGuard }],
 })
 export class AppModule {}

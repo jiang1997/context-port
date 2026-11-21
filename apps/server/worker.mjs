@@ -2,7 +2,7 @@
 import { httpServerHandler } from 'cloudflare:node';
 import { createApplication } from './dist/bootstrap.js';
 import { withRequestDatabase } from './dist/db/request-database.js';
-import { TemporaryContextService } from './dist/temporary-context/temporary-context.service.js';
+import { DatabaseMaintenance } from './dist/db/database-maintenance.js';
 
 // Initialize during the startup budget, rather than charging Nest bootstrap to
 // the first request's 10 ms CPU budget. No database I/O runs during startup.
@@ -18,7 +18,7 @@ export default {
   },
   async scheduled(_event, env, ctx) {
     ctx.waitUntil(withRequestDatabase(env.HYPERDRIVE?.connectionString ?? env.DATABASE_URL, async () => {
-      await application.get(TemporaryContextService).deleteExpired();
+      await application.get(DatabaseMaintenance).pruneExpired();
     }));
   },
 };

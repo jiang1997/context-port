@@ -19,8 +19,10 @@
 
 Workers 配置位于根目录 `wrangler.jsonc`，入口为 `apps/server/worker.mjs`。
 构建先运行 TypeScript 编译以保留 Nest 的装饰器元数据，再由 Wrangler 打包。
-数据库连接按请求创建和关闭；每日 03:00 UTC 的 Cron Trigger 清理过期临时上下文，
-不依赖常驻进程中的计时器。Nest 在 Worker 启动阶段初始化，避免把完整框架初始化
+数据库连接按请求创建和关闭。每日 03:00 UTC 的 Cron Trigger 清理过期临时上下文和
+已过期超过一天的会话。部署前，用数据库直连地址执行 `pnpm db:migrate` 应用待执行的
+迁移。`0006_session_indexes` 为会话清理和用户删除添加索引。
+Nest 在 Worker 启动阶段初始化，避免把完整框架初始化
 计入首个请求的 CPU 时间。配置中的账户和 Hyperdrive ID 属于当前部署，换账户时需更新。
 
 `PUBLIC_BASE_URL` 保持公开前端地址 `https://context-port.vercel.app`，配合 Vercel
