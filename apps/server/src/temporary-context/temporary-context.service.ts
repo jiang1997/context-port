@@ -53,7 +53,9 @@ export class TemporaryContextService {
   async append(passphrase: string, content: string) {
     const hash = this.hash(PassphraseSchema.parse(passphrase));
     const addition = content;
-    if (!addition || addition.length > 20_000) throw new PayloadTooLargeException('Append must contain 1–20,000 characters.');
+    if (!addition || addition.length > 20_000) throw new PayloadTooLargeException({
+      code: 'TEMPORARY_CONTEXT_APPEND_SIZE', message: 'Append must contain 1–20,000 characters.',
+    });
     const [row] = await this.db.update(clipboards).set({
       content: sql`${clipboards.content} || CASE WHEN ${clipboards.content} = '' THEN '' ELSE E'\n\n' END || ${addition}`,
       version: sql`${clipboards.version} + 1`,
@@ -66,7 +68,9 @@ export class TemporaryContextService {
     )).returning();
     if (!row) {
       await this.findActive(hash);
-      throw new PayloadTooLargeException('Temporary Context is full (100,000 characters).');
+      throw new PayloadTooLargeException({
+        code: 'TEMPORARY_CONTEXT_FULL', message: 'Temporary Context is full (100,000 characters).',
+      });
     }
     return this.publicRow(row);
   }

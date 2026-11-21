@@ -30,7 +30,9 @@ export class BusinessGuard implements CanActivate {
       const next = current && current.resetAt > now ? current : { count: 0, resetAt: now + 60_000 };
       next.count += 1;
       clipboardRequests.set(ip, next);
-      if (next.count > 60) throw new ForbiddenException('Too many temporary context requests. Try again shortly.');
+      if (next.count > 60) throw new ForbiddenException({
+        code: 'TEMPORARY_CONTEXT_RATE_LIMITED', message: 'Too many temporary context requests. Try again shortly.',
+      });
       if (clipboardRequests.size > 10_000) for (const [key, value] of clipboardRequests) if (value.resetAt <= now) clipboardRequests.delete(key);
       return true;
     }

@@ -5,7 +5,14 @@ import { EmptyState } from '@astryxdesign/core/EmptyState';
 import { Skeleton as AstryxSkeleton } from '@astryxdesign/core/Skeleton';
 import { Stack } from '@astryxdesign/core/Stack';
 import { googleLoginUrl, saveLoginFragment } from '../api/auth';
-import { useI18n } from '../i18n';
+import { ApiError } from '../api/client';
+import { useI18n, type AppMessageKey } from '../i18n';
+
+const apiErrorMessages = new Map<string, AppMessageKey>([
+  ['TEMPORARY_CONTEXT_FULL', '@app.error.temporaryFull'],
+  ['TEMPORARY_CONTEXT_APPEND_SIZE', '@app.error.temporaryAppendSize'],
+  ['TEMPORARY_CONTEXT_RATE_LIMITED', '@app.error.temporaryRateLimited'],
+]);
 
 export function Skeleton({ lines = 3, heading = false }: { lines?: number; heading?: boolean }) {
   return (
@@ -55,5 +62,10 @@ export function LoginResultNotice() {
 export function ErrorNotice({ error }: { error: Error | null }) {
   const { t } = useI18n();
   if (!error) return null;
-  return <Banner status="error" title={t('@app.common.somethingWentWrong')} description={error.message} container="card" />;
+  const apiError = error instanceof ApiError ? error : undefined;
+  const key = apiError?.code ? apiErrorMessages.get(apiError.code) : undefined;
+  const description = key ? t(key) : apiError
+    ? apiError.serverMessage ?? t('@app.error.requestFailed', { status: apiError.status })
+    : error.message;
+  return <Banner status="error" title={t('@app.common.somethingWentWrong')} description={description} container="card" />;
 }

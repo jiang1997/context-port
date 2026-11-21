@@ -318,7 +318,7 @@ function TemporaryContextWorkspace({ passphrase, onLeave }: { passphrase: string
   const queryClient = useQueryClient();
   const [addition, setAddition] = useState('');
   const [additionError, setAdditionError] = useState(false);
-  const [edit, setEdit] = useState<{ content: string; originalContent: string; version: number } | null>(null);
+  const [edit, setEdit] = useState<{ content: string; originalContent: string; version: number; merging?: boolean } | null>(null);
   const queryKey = temporaryContextKey(passphrase);
   const read = useQuery({
     queryKey,
@@ -391,6 +391,8 @@ function TemporaryContextWorkspace({ passphrase, onLeave }: { passphrase: string
   const unavailable = isMissingContext(read.error);
   const versionConflict = update.error instanceof ApiError && update.error.status === 409;
   const editConflict = versionConflict || (edit !== null && data !== undefined && edit.version !== data.version);
+  const canUseLatest = edit !== null && data !== undefined && data.version > edit.version;
+  const showLatest = editConflict || edit?.merging;
 
   function startEditing() {
     if (!data || unavailable || saving) return;
@@ -401,6 +403,12 @@ function TemporaryContextWorkspace({ passphrase, onLeave }: { passphrase: string
   function submitEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (edit && !editConflict && !saving && !unavailable) update.mutate(edit);
+  }
+
+  function useLatestVersion() {
+    if (!edit || !data || !canUseLatest || saving || unavailable) return;
+    update.reset();
+    setEdit({ ...edit, originalContent: data.content, version: data.version, merging: true });
   }
 
   function submitAddition(event: FormEvent<HTMLFormElement>) {
@@ -467,16 +475,20 @@ function TemporaryContextWorkspace({ passphrase, onLeave }: { passphrase: string
                   rows={14}
                 />
                 {editConflict && <Text type="supporting" role="alert">{t('@app.temp.editConflict')}</Text>}
+                {edit?.merging && !editConflict && <Text type="supporting">{t('@app.temp.mergeDraft')}</Text>}
                 <ErrorNotice error={versionConflict ? null : update.error} />
                 <Stack direction="horizontal" gap={3} wrap="wrap">
                   <Button label={t('@app.temp.saveChanges')} variant="primary" type="submit" isLoading={update.isPending} isDisabled={editConflict || saving || unavailable} />
+                  {editConflict && !unavailable && (canUseLatest
+                    ? <Button label={t('@app.temp.useLatestVersion')} variant="secondary" isDisabled={saving} onClick={useLatestVersion} />
+                    : <Button label={t('@app.temp.refreshLatest')} variant="secondary" isLoading={read.isFetching} isDisabled={saving} onClick={() => void read.refetch()} />)}
                   <Button label={t('@app.temp.cancelEdit')} variant="secondary" isDisabled={saving} onClick={() => { setEdit(null); update.reset(); }} />
                 </Stack>
-                {editConflict && <Heading level={2}>{t('@app.temp.latestContent')}</Heading>}
+                {showLatest && <Heading level={2}>{t('@app.temp.latestContent')}</Heading>}
               </Stack>
             </form>
           )}
-          {(!edit || editConflict) && (
+          {(!edit || showLatest) && (
             <div className="temporary-document-body">
               {data.content.trim()
                 ? <MarkdownContent content={data.content} />

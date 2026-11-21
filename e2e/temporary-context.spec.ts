@@ -146,7 +146,7 @@ test('joining a missing context never creates it until the explicit create actio
 
   await page.route('**/temporary-contexts/open', route => route.fulfill({ status: 503, json: { message: 'Temporarily unavailable' } }));
   await create.click();
-  await expect(page.getByText('API request failed with status 503', { exact: true })).toBeVisible();
+  await expect(page.getByText('Temporarily unavailable', { exact: true })).toBeVisible();
   await expect(page).toHaveURL('/');
   await page.unroute('**/temporary-contexts/open');
   await create.click();
@@ -292,4 +292,49 @@ test('the Chinese launch and workspace show the document within the mobile viewp
   await expect(page.getByRole('button', { name: '编辑内容', exact: true })).toBeInViewport();
   await expect(page.getByRole('textbox', { name: /^访问口令/ })).toHaveCount(0);
   expect(await page.evaluate(() => window.document.documentElement.scrollWidth)).toBe(390);
+});
+
+test('a stale draft can be merged with the latest shared version in place', async ({ page }) => {
+  const passphrase = `merge-${Date.now()}`;
+  await page.goto('/');
+  await createWithPassphrase(page, passphrase);
+  await page.getByRole('button', { name: 'Edit content', exact: true }).click();
+  const editor = page.getByRole('textbox', { name: /^Edit content\b/ });
+  await editor.fill('My draft');
+
+  const updatePath = '**/temporary-contexts/update';
+  await page.route(updatePath, async route => {
+    const appended = await page.request.post('/api/v1/temporary-contexts/append', {
+      data: { passphrase, content: 'Agent addition' },
+    });
+    expect(appended.ok()).toBe(true);
+    await route.continue();
+  }, { times: 1 });
+  const stale = page.waitForResponse(response => response.url().endsWith('/temporary-contexts/update'));
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  expect((await stale).status()).toBe(409);
+
+  await expect(page.getByText('Agent addition', { exact: true })).toBeVisible();
+  await expect(editor).toHaveValue('My draft');
+  await page.getByRole('button', { name: 'Continue with latest version' }).click();
+  await expect(editor).toHaveValue('My draft');
+  await expect(page.getByText('Agent addition', { exact: true })).toBeVisible();
+  await editor.fill('My draft\n\nAgent addition');
+  await page.getByRole('button', { name: 'Save changes' }).click();
+  await expect(editor).toHaveCount(0);
+  await expect(page.getByText('My draft', { exact: true })).toBeVisible();
+  await expect(page.getByText('Agent addition', { exact: true })).toBeVisible();
+});
+
+test('Chinese UI explains the temporary-context size limit', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('contextport.locale', 'zh-CN'));
+  await page.goto('/');
+  await page.getByRole('button', { name: '随机生成口令并创建' }).click();
+  await page.route('**/temporary-contexts/append', route => route.fulfill({
+    status: 413,
+    json: { error: { code: 'TEMPORARY_CONTEXT_FULL', message: 'Temporary Context is full (100,000 characters).' } },
+  }));
+  await page.getByRole('textbox', { name: /^要添加的内容/ }).fill('内容');
+  await page.getByRole('button', { name: '添加内容', exact: true }).click();
+  await expect(page.getByText('此临时上下文已满（100,000 字符）。', { exact: true })).toBeVisible();
 });

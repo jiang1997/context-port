@@ -42,10 +42,20 @@ async function fetchApiCsrfToken(signal?: AbortSignal | null) {
 }
 
 export class ApiError extends Error {
+  readonly code?: string;
+  readonly serverMessage?: string;
+
   constructor(
     readonly status: number,
     readonly payload: unknown,
   ) {
     super(`API request failed with status ${status}`);
+    if (!payload || typeof payload !== 'object') return;
+    const error = 'error' in payload && payload.error && typeof payload.error === 'object' ? payload.error : payload;
+    if ('code' in error && typeof error.code === 'string') this.code = error.code;
+    if ('message' in error && typeof error.message === 'string' && error.message.trim()) {
+      this.serverMessage = error.message;
+      this.message = error.message;
+    }
   }
 }
