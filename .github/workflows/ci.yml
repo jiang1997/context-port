@@ -53,6 +53,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - run: pnpm check:cloudflare
       - name: Notify Vercel of verification result
         if: always() && github.event_name == 'push'
         uses: actions/github-script@v9
