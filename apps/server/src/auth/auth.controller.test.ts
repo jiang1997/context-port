@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { createHash } from 'node:crypto';
 import { ForbiddenException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -13,6 +14,10 @@ vi.mock('../config/environment.js', async importOriginal => ({
 }));
 import { AuthController } from './auth.controller.js';
 import { parseCookies, STATE_TTL_MS } from './auth.constants.js';
+import { signOAuthState, verifyOAuthState } from './oauth-state.js';
+
+const codeVerifier = 'v'.repeat(43);
+const nonce = 'expected-nonce';
 
 function setup() {
   const google = { authenticateWithCode: vi.fn().mockResolvedValue({ id: 'user-1' }) };
@@ -28,7 +33,7 @@ function req(query: Record<string, unknown> = {}, cookie?: string, headers: Reco
   return { query, headers: { ...headers, ...(cookie === undefined ? {} : { cookie }) } } as unknown as Request;
 }
 function stateCookie(redirectTo = '/contexts', issuedAt = Date.now()) {
-  return `cp_oauth_state=${encodeURIComponent(JSON.stringify({ state: 'expected-state', redirectTo, issuedAt }))}`;
+  return `cp_oauth_state=${signOAuthState({ state: 'expected-state', nonce, codeVerifier, redirectTo, issuedAt }, env.GOOGLE_CLIENT_SECRET)}`;
 }
 
 describe('Google login controller', () => {
@@ -42,8 +47,11 @@ describe('Google login controller', () => {
     expect(destination.searchParams.get('prompt')).toBe('select_account');
     expect(destination.searchParams.get('redirect_uri')).toBe('https://app.example/api/v1/auth/google/callback');
     const cookie = res.setHeader.mock.calls.find(([name]) => name === 'Set-Cookie')![1] as string;
-    const stored = JSON.parse(parseCookies(cookie.split(';')[0])['cp_oauth_state']!);
+    const stored = verifyOAuthState(parseCookies(cookie.split(';')[0])['cp_oauth_state'], env.GOOGLE_CLIENT_SECRET)!;
     expect(stored.state).toBe(destination.searchParams.get('state'));
+    expect(destination.searchParams.get('nonce')).toBe(stored.nonce);
+    expect(destination.searchParams.get('code_challenge_method')).toBe('S256');
+    expect(destination.searchParams.get('code_challenge')).toBe(createHash('sha256').update(stored.codeVerifier).digest('base64url'));
     expect(stored.redirectTo).toBe('/contexts?offset=20');
     expect(cookie).toContain('HttpOnly; Secure');
     expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'no-store');
@@ -61,7 +69,7 @@ describe('Google login controller', () => {
     ('round-trips the encoded return path %s without a second decode', async redirectTo => {
       const { controller, res, response, google, sessions } = setup();
       await controller.callback(req({ code: 'code', state: 'expected-state' }, stateCookie(redirectTo)), response);
-      expect(google.authenticateWithCode).toHaveBeenCalledWith('code', 'https://app.example/api/v1/auth/google/callback');
+      expect(google.authenticateWithCode).toHaveBeenCalledWith('code', 'https://app.example/api/v1/auth/google/callback', { codeVerifier, nonce });
       expect(sessions.issue).toHaveBeenCalledWith('user-1');
       expect(res.redirect).toHaveBeenCalledWith(302, redirectTo);
       const cookies = res.setHeader.mock.calls.find(([name]) => name === 'Set-Cookie')![1] as string[];
@@ -76,8 +84,10 @@ describe('Google login controller', () => {
 
   it.each([
     undefined, 'cp_oauth_state=%ZZ', 'cp_oauth_state=null',
+    stateCookie().replace(/.$/, char => char === 'a' ? 'b' : 'a'),
+    stateCookie().replace(/=[^.]+/, '=different-payload'),
     stateCookie('/', Date.now() - STATE_TTL_MS - 1000), stateCookie('/', Date.now() + 60_000),
-  ])('rejects missing, malformed, expired and future state cookies (%s)', async cookie => {
+  ])('rejects missing, malformed, tampered, expired and future state cookies (%s)', async cookie => {
     const { controller, res, response, google, sessions } = setup();
     await controller.callback(req({ code: 'code', state: 'expected-state' }, cookie), response);
     expect(res.redirect).toHaveBeenCalledWith(302, '/?login=failed');
@@ -106,7 +116,7 @@ describe('Google login controller', () => {
     if (stage === 'exchange') google.authenticateWithCode.mockRejectedValue(new Error('exchange failed'));
     else sessions.issue.mockRejectedValue(new Error('database failed'));
     await controller.callback(req({ code: 'code', state: 'expected-state' }, stateCookie()), response);
-    expect(res.redirect).toHaveBeenCalledWith(302, '/contexts?login=failed');
+    expect(res.redirect).toHaveBeenCalledWith(302, '/?login=failed');
     expect(res.setHeader).toHaveBeenCalledWith('Set-Cookie', expect.stringContaining('cp_oauth_state=;'));
   });
 

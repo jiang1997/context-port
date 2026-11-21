@@ -73,6 +73,10 @@ Vercel 的 `VITE_API_BASE_URL` 保持 `/api/v1`；若切回 Render，需将 `/ap
 模式设置稳定的 `CLIPBOARD_SECRET`（至少 32 字符）。账户登录还需配置[本地开发指南](development.zh-CN.md)中的 Google 变量，
 其中 `PUBLIC_BASE_URL` 应与公开网页地址一致，并登记对应的 OAuth 回调。
 
+`WEB_EXTRA_ORIGINS` 允许明确受信任的浏览器来源发送带凭据的请求。浏览器能发送
+API Cookie 时，跨源直连可使用已有会话。账户登录及网页与 API 跨站的部署请使用同源
+转发。网页构建如需直连其他 API 来源，请将该来源加入网页 CSP 的 `connect-src`。
+
 新数据库需执行全部迁移。现有部署在数据库结构变化时执行尚未应用的迁移；仅前端或
 不涉及结构变化的 API 更新无需迁移数据库。当前 Render 免费套餐配置没有自动迁移步骤，
 需要使用目标数据库的 direct/unpooled `DATABASE_URL` 执行 `pnpm db:migrate`，再发布

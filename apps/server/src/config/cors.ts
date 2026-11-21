@@ -5,9 +5,13 @@ import { getAllowedOrigins, type Environment } from './environment.js';
 
 export function createCorsOptions(environment: Environment): CorsOptionsDelegate<Request> {
   const allowedOrigins = getAllowedOrigins(environment);
-  return (req, callback) => callback(null, {
-    origin: isTemporaryContextPath(req.path) ? '*' : allowedOrigins,
-    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
-    allowedHeaders: ['authorization', 'content-type', 'x-csrf-token', 'x-request-id'],
-  });
+  return (req, callback) => {
+    const temporary = isTemporaryContextPath(req.path);
+    callback(null, {
+      origin: temporary ? '*' : allowedOrigins,
+      credentials: !temporary && allowedOrigins.includes(req.headers.origin ?? ''),
+      methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
+      allowedHeaders: ['authorization', 'content-type', 'x-csrf-token', 'x-request-id'],
+    });
+  };
 }

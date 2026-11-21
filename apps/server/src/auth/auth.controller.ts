@@ -1,4 +1,5 @@
-import { Controller, ForbiddenException, Get, Header, Post, Inject, Req, Res } from '@nestjs/common';
+import { createHash } from 'node:crypto';
+import { Controller, Get, Header, Post, Inject, Req, Res } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { getEnvironment, usesSecureCookies } from '../config/environment.js';
 import {
@@ -9,12 +10,17 @@ import {
   STATE_TTL_MS,
   generateCsrfToken,
   generateOAuthState,
+  generateSessionToken,
   googleAuthorizationUrl,
   parseCookies,
   safeRedirectPath,
   serializeCookie,
+  tokensEqual,
 } from './auth.constants.js';
+import { Public } from './auth-policy.decorator.js';
+import { assertCsrf } from './csrf.js';
 import { GoogleAuthService } from './google-auth.service.js';
+import { signOAuthState, verifyOAuthState } from './oauth-state.js';
 import { SessionService, type SessionUser } from './session.service.js';
 
 @Controller('api/v1/auth')
@@ -26,6 +32,7 @@ export class AuthController {
 
   /** Starts the authorization-code flow, carrying `state` and the intended redirect. */
   @Get('google/start')
+  @Public()
   start(@Req() req: Request, @Res() res: Response): void {
     res.setHeader('Cache-Control', 'no-store');
     if (!this.isConfigured()) {
@@ -34,12 +41,16 @@ export class AuthController {
     }
     const environment = getEnvironment();
     const state = generateOAuthState();
+    const nonce = generateOAuthState();
+    const codeVerifier = generateSessionToken();
+    const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url');
     const redirectTo = safeRedirectPath(typeof req.query.redirect === 'string' ? req.query.redirect : undefined);
-    const statePayload = JSON.stringify({ state, redirectTo, issuedAt: Date.now() });
+    const statePayload = signOAuthState({ state, nonce, codeVerifier, redirectTo, issuedAt: Date.now() },
+      environment.GOOGLE_CLIENT_SECRET!);
     // The cookie binds the state returned by Google to this browser.
     res.setHeader('Set-Cookie', serializeCookie({
       name: OAUTH_STATE_COOKIE,
-      value: encodeURIComponent(statePayload),
+      value: statePayload,
       maxAgeSeconds: Math.floor(STATE_TTL_MS / 1000),
       httpOnly: true,
       secure: usesSecureCookies(environment),
@@ -48,11 +59,14 @@ export class AuthController {
       clientId: environment.GOOGLE_CLIENT_ID!,
       redirectUri: this.redirectUri(),
       state,
+      nonce,
+      codeChallenge,
     }));
   }
 
   /** Exchanges the code, verifies the ID Token, issues the app session cookie. */
   @Get('google/callback')
+  @Public()
   async callback(@Req() req: Request, @Res() res: Response): Promise<void> {
     res.setHeader('Cache-Control', 'no-store');
     const environment = getEnvironment();
@@ -68,19 +82,23 @@ export class AuthController {
     const query = req.query as { code?: string; state?: string; error?: string };
     if (query.error) return fail(query.error === 'access_denied' ? '/?login=denied' : '/?login=failed');
 
-    const stored = this.readStateCookie(parseCookies(req.headers.cookie)[OAUTH_STATE_COOKIE]);
+    const stored = verifyOAuthState(parseCookies(req.headers.cookie)[OAUTH_STATE_COOKIE], environment.GOOGLE_CLIENT_SECRET);
+    const now = Date.now();
     if (!stored || typeof query.code !== 'string' || typeof query.state !== 'string'
-      || !query.code || !query.state || query.state !== stored.state
-      || stored.issuedAt > Date.now() || Date.now() - stored.issuedAt >= STATE_TTL_MS) {
+      || !query.code || !tokensEqual(stored.state, query.state)
+      || stored.issuedAt > now || now - stored.issuedAt >= STATE_TTL_MS) {
       return fail('/?login=failed');
     }
 
     let session: Awaited<ReturnType<SessionService['issue']>>;
     try {
-      const user = await this.google.authenticateWithCode(query.code, this.redirectUri());
+      const user = await this.google.authenticateWithCode(query.code, this.redirectUri(), {
+        codeVerifier: stored.codeVerifier,
+        nonce: stored.nonce,
+      });
       session = await this.sessions.issue(user.id);
     } catch {
-      return fail('/contexts?login=failed');
+      return fail('/?login=failed');
     }
 
     const { token, expiresAt } = session;
@@ -95,6 +113,7 @@ export class AuthController {
   }
 
   @Get('me')
+  @Public()
   @Header('Cache-Control', 'no-store')
   async me(@Req() req: Request): Promise<{ user: SessionUser | null; csrfToken: string | null }> {
     const cookies = parseCookies(req.headers.cookie);
@@ -105,15 +124,14 @@ export class AuthController {
 
   /** Logout revokes the server-side session and clears both cookies. */
   @Post('logout')
+  @Public()
   @Header('Cache-Control', 'no-store')
   async logout(@Req() req: Request, @Res() res: Response): Promise<void> {
     const environment = getEnvironment();
     const secure = usesSecureCookies(environment);
     const clear = serializeCookie({ name: OAUTH_STATE_COOKIE, value: '', maxAgeSeconds: 0, httpOnly: true, secure });
     const cookies = parseCookies(req.headers.cookie);
-    if (cookies[SESSION_COOKIE] && (!cookies[CSRF_COOKIE] || req.headers[CSRF_HEADER] !== cookies[CSRF_COOKIE])) {
-      throw new ForbiddenException('CSRF token is missing or invalid.');
-    }
+    if (cookies[SESSION_COOKIE]) assertCsrf(cookies[CSRF_COOKIE], req.headers[CSRF_HEADER]);
     await this.sessions.revoke(cookies[SESSION_COOKIE]);
     res.setHeader('Set-Cookie', [
       serializeCookie({ name: SESSION_COOKIE, value: '', maxAgeSeconds: 0, httpOnly: true, secure }),
@@ -121,18 +139,6 @@ export class AuthController {
       clear,
     ]);
     res.status(204).send();
-  }
-
-  private readStateCookie(value: string | undefined): { state: string; redirectTo: string; issuedAt: number } | null {
-    if (!value) return null;
-    try {
-      const parsed = JSON.parse(value) as { state?: unknown; redirectTo?: unknown; issuedAt?: unknown };
-      if (typeof parsed.state !== 'string' || !parsed.state || typeof parsed.redirectTo !== 'string'
-        || typeof parsed.issuedAt !== 'number' || !Number.isFinite(parsed.issuedAt)) return null;
-      return { state: parsed.state, redirectTo: parsed.redirectTo, issuedAt: parsed.issuedAt };
-    } catch {
-      return null;
-    }
   }
 
   private redirectUri(): string {

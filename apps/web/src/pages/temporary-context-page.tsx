@@ -122,6 +122,7 @@ function passphraseError(passphrase: string): AppMessageKey | null {
 function requestContext(action: 'open' | 'read', passphrase: string, signal?: AbortSignal) {
   return apiRequest<TemporaryContext>(`/temporary-contexts/${action}`, {
     method: 'POST',
+    credentials: 'omit',
     body: JSON.stringify({ passphrase }),
     signal: signal ?? null,
   });
@@ -163,7 +164,9 @@ function TemporaryContextLaunch({ invalidLinkError, onOpen }: {
     mutationFn: ({ action, passphrase }: { action: 'open' | 'read'; passphrase: string }) => requestContext(action, passphrase),
   });
   const generate = useMutation({
-    mutationFn: () => apiRequest<GeneratedTemporaryContext>('/temporary-contexts/generate', { method: 'POST' }),
+    mutationFn: () => apiRequest<GeneratedTemporaryContext>('/temporary-contexts/generate', {
+      method: 'POST', credentials: 'omit',
+    }),
   });
   const isPending = entryRequest.isPending || generate.isPending;
   const missingEntry = entryRequest.variables?.action === 'read' && isMissingContext(entryRequest.error);
@@ -333,7 +336,7 @@ function TemporaryContextWorkspace({ passphrase, onLeave }: { passphrase: string
 
   const append = useMutation({
     mutationFn: (content: string) => apiRequest<TemporaryContext>('/temporary-contexts/append', {
-      method: 'POST', body: JSON.stringify({ passphrase, content }),
+      method: 'POST', credentials: 'omit', body: JSON.stringify({ passphrase, content }),
     }),
     onSuccess: async data => {
       await cacheWrite(data);
@@ -342,7 +345,8 @@ function TemporaryContextWorkspace({ passphrase, onLeave }: { passphrase: string
   });
   const update = useMutation({
     mutationFn: (draft: { content: string; version: number }) => apiRequest<TemporaryContext>('/temporary-contexts/update', {
-      method: 'POST', body: JSON.stringify({ passphrase, content: draft.content, expectedVersion: draft.version }),
+      method: 'POST', credentials: 'omit',
+      body: JSON.stringify({ passphrase, content: draft.content, expectedVersion: draft.version }),
     }),
     onSuccess: async data => {
       await cacheWrite(data);

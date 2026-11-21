@@ -22,12 +22,14 @@ beforeAll(async () => {
 });
 afterEach(() => { vi.unstubAllGlobals(); });
 
+const verification = { codeVerifier: 'test-verifier', nonce: 'test-nonce' };
+
 async function token(overrides: JWTPayload = {}, omit: string[] = [], key?: CryptoKey) {
   const now = Math.floor(Date.now() / 1000);
   const payload: JWTPayload = {
     iss: 'https://accounts.google.com', aud: 'test-client', sub: 'google-user-1',
     iat: now, exp: now + 300, email: 'a@example.com', email_verified: true,
-    name: 'Test User', ...overrides,
+    name: 'Test User', nonce: verification.nonce, ...overrides,
   };
   for (const claim of omit) delete payload[claim];
   return new SignJWT(payload).setProtectedHeader({ alg: 'RS256' }).sign(key ?? privateKey);
@@ -48,12 +50,13 @@ const redirectUri = 'https://app.example/api/v1/auth/google/callback';
 describe('Google ID Token validation', () => {
   it('exchanges the code with the same redirect URI and accepts a signed verified identity', async () => {
     const { service, user, fetchMock, updateValues } = setup(await token());
-    await expect(service.authenticateWithCode('authorization-code', redirectUri)).resolves.toEqual(user);
+    await expect(service.authenticateWithCode('authorization-code', redirectUri, verification)).resolves.toEqual(user);
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('https://oauth2.googleapis.com/token');
     expect(init.method).toBe('POST');
     expect(init.body.get('redirect_uri')).toBe(redirectUri);
     expect(init.body.get('code')).toBe('authorization-code');
+    expect(init.body.get('code_verifier')).toBe(verification.codeVerifier);
     expect(init.body.get('grant_type')).toBe('authorization_code');
     expect(updateValues).toHaveBeenCalledWith(expect.objectContaining({ email: 'a@example.com', name: 'Test User' }));
   });
@@ -61,30 +64,30 @@ describe('Google ID Token validation', () => {
   it.each([
     { iss: 'https://evil.example' }, { aud: 'other-client' },
     { exp: Math.floor(Date.now() / 1000) - 120 }, { email_verified: false },
-    { email: '' }, { sub: '' }, { azp: 'other-client' },
+    { email: '' }, { sub: '' }, { azp: 'other-client' }, { nonce: 'other-nonce' },
   ])('rejects invalid claims %j before touching the user database', async claims => {
     const { service, db } = setup(await token(claims));
-    await expect(service.authenticateWithCode('code', redirectUri)).rejects.toThrow(UnauthorizedException);
+    await expect(service.authenticateWithCode('code', redirectUri, verification)).rejects.toThrow(UnauthorizedException);
     expect(db.select).not.toHaveBeenCalled();
   });
 
-  it.each(['exp', 'iat', 'sub', 'email'])('rejects a token missing %s', async claim => {
+  it.each(['exp', 'iat', 'sub', 'email', 'nonce'])('rejects a token missing %s', async claim => {
     const { service, db } = setup(await token({}, [claim]));
-    await expect(service.authenticateWithCode('code', redirectUri)).rejects.toThrow(UnauthorizedException);
+    await expect(service.authenticateWithCode('code', redirectUri, verification)).rejects.toThrow(UnauthorizedException);
     expect(db.select).not.toHaveBeenCalled();
   });
 
   it('rejects a token signed with an untrusted key', async () => {
     const otherKey = await generateKeyPair('RS256');
     const { service, db } = setup(await token({}, [], otherKey.privateKey));
-    await expect(service.authenticateWithCode('code', redirectUri)).rejects.toThrow(UnauthorizedException);
+    await expect(service.authenticateWithCode('code', redirectUri, verification)).rejects.toThrow(UnauthorizedException);
     expect(db.select).not.toHaveBeenCalled();
   });
 
   it.each([['missing token', undefined, true], ['exchange failure', undefined, false]] as const)
     ('rejects %s', async (_, idToken, ok) => {
       const { service, db } = setup(idToken, ok);
-      await expect(service.authenticateWithCode('code', redirectUri)).rejects.toThrow(UnauthorizedException);
+      await expect(service.authenticateWithCode('code', redirectUri, verification)).rejects.toThrow(UnauthorizedException);
       expect(db.select).not.toHaveBeenCalled();
     });
 });

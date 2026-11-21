@@ -38,7 +38,9 @@ describe('OAuth state', () => {
     expect(generateOAuthState()).toMatch(/^[A-Za-z0-9_-]+$/);
   });
   it('builds the Google authorization URL with openid email profile only', () => {
-    const url = new URL(googleAuthorizationUrl({ clientId: 'cid', redirectUri: 'https://x.example/cb', state: 'st' }));
+    const url = new URL(googleAuthorizationUrl({
+      clientId: 'cid', redirectUri: 'https://x.example/cb', state: 'st', nonce: 'nonce', codeChallenge: 'challenge',
+    }));
     expect(url.origin).toBe('https://accounts.google.com');
     expect(url.searchParams.get('scope')).toBe('openid email profile');
     expect(url.searchParams.get('prompt')).toBe('select_account');
@@ -47,6 +49,9 @@ describe('OAuth state', () => {
     expect(url.searchParams.get('client_id')).toBe('cid');
     expect(url.searchParams.get('redirect_uri')).toBe('https://x.example/cb');
     expect(url.searchParams.get('state')).toBe('st');
+    expect(url.searchParams.get('nonce')).toBe('nonce');
+    expect(url.searchParams.get('code_challenge')).toBe('challenge');
+    expect(url.searchParams.get('code_challenge_method')).toBe('S256');
   });
 });
 

@@ -70,12 +70,14 @@ describe('Temporary Context CORS', () => {
   it('keeps foreign origins blocked on private routes', async () => {
     const response = await request(app.getHttpServer()).get('/api/v1/contexts').set('Origin', origin).expect(403);
     expect(response.headers['access-control-allow-origin']).toBeUndefined();
+    expect(response.headers['access-control-allow-credentials']).toBeUndefined();
   });
 
   it.each([environment.WEB_ORIGIN, 'https://preview.example'])('keeps whitelist CORS for %s on other routes', async allowedOrigin => {
     const response = await request(app.getHttpServer()).options('/api/v1/contexts')
       .set('Origin', allowedOrigin).set('Access-Control-Request-Method', 'GET').expect(204);
     expect(response.headers['access-control-allow-origin']).toBe(allowedOrigin);
+    expect(response.headers['access-control-allow-credentials']).toBe('true');
   });
 
   it.each(['/api/v1/clipboard-other/read', '/api/v1/temporary-contexts-other/read'])('does not open similarly named routes: %s', async path => {

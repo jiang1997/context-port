@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
 export const SESSION_COOKIE = 'cp_session';
 export const OAUTH_STATE_COOKIE = 'cp_oauth_state';
@@ -15,7 +15,9 @@ export const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 export const GOOGLE_JWKS = 'https://www.googleapis.com/oauth2/v3/certs';
 export const GOOGLE_ISSUERS = ['https://accounts.google.com', 'accounts.google.com'];
 
-export function googleAuthorizationUrl(input: { clientId: string; redirectUri: string; state: string }): string {
+export function googleAuthorizationUrl(input: {
+  clientId: string; redirectUri: string; state: string; nonce: string; codeChallenge: string;
+}): string {
   const params = new URLSearchParams({
     client_id: input.clientId,
     redirect_uri: input.redirectUri,
@@ -24,6 +26,9 @@ export function googleAuthorizationUrl(input: { clientId: string; redirectUri: s
     // App logout leaves Google's session active; always let the user pick an account.
     prompt: 'select_account',
     state: input.state,
+    nonce: input.nonce,
+    code_challenge: input.codeChallenge,
+    code_challenge_method: 'S256',
     include_granted_scopes: 'true',
   });
   return `${GOOGLE_AUTHORIZATION_ENDPOINT}?${params}`;
@@ -82,6 +87,12 @@ export function generateCsrfToken(): string {
 
 export function generateOAuthState(): string {
   return randomBytes(24).toString('base64url');
+}
+
+export function tokensEqual(expected: string, actual: string): boolean {
+  const a = Buffer.from(expected);
+  const b = Buffer.from(actual);
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 /**

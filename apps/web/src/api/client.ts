@@ -15,16 +15,30 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   const headers = new Headers(init.headers);
   headers.set('accept', 'application/json');
   if (init.body) headers.set('content-type', 'application/json');
-  const csrfToken = readCsrfToken();
-  if (csrfToken) headers.set('x-csrf-token', csrfToken);
+  const credentials = init.credentials ?? 'include';
+  const method = (init.method ?? 'GET').toUpperCase();
+  if (credentials !== 'omit' && !headers.has('x-csrf-token') && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+    const crossOrigin = typeof window !== 'undefined'
+      && new URL(apiBaseUrl, window.location.origin).origin !== window.location.origin;
+    const csrfToken = crossOrigin
+      ? (credentials === 'include' ? await fetchApiCsrfToken(init.signal) : undefined)
+      : readCsrfToken();
+    if (csrfToken) headers.set('x-csrf-token', csrfToken);
+  }
 
-  const response = await fetch(`${apiBaseUrl}${path}`, { credentials: 'include', ...init, headers });
+  const response = await fetch(`${apiBaseUrl}${path}`, { ...init, credentials, headers });
   if (!response.ok) {
     const payload: unknown = await response.json().catch(() => undefined);
     throw new ApiError(response.status, payload);
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
+}
+
+async function fetchApiCsrfToken(signal?: AbortSignal | null) {
+  // A direct API origin owns its own cookies. Read its token through credentialed CORS.
+  const session = await apiRequest<{ csrfToken: string | null }>('/auth/me', { signal: signal ?? null });
+  return session.csrfToken ?? undefined;
 }
 
 export class ApiError extends Error {

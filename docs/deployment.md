@@ -85,6 +85,12 @@ characters for network mode. Account login also needs the Google variables in [t
 and a `PUBLIC_BASE_URL` matching the public Web origin, with the corresponding
 OAuth callback registered.
 
+`WEB_EXTRA_ORIGINS` allows credentialed requests from explicitly trusted browser
+origins. Direct API requests can use an existing session when the browser sends
+the API's cookies. Use same-origin rewrites for account login and deployments
+whose Web and API hosts are on different sites. If a Web build connects directly
+to a different API origin, add that origin to its CSP `connect-src`.
+
 For a new database, apply all migrations. For an existing deployment, apply only
 pending migrations when the schema changes; frontend or API-only changes do not
 need a database migration. This free-plan Render configuration has no automatic

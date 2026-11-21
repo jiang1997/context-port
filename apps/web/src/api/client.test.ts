@@ -6,7 +6,7 @@ function cookieJar(cookies: string[]) {
 }
 
 describe('api client', () => {
-  afterEach(() => { vi.unstubAllGlobals(); });
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
   it('attaches the CSRF double-submit header when the cookie exists', async () => {
     vi.stubGlobal('document', { cookie: 'cp_session=hidden; cp_csrf=csrf-value' });
@@ -26,6 +26,39 @@ describe('api client', () => {
     const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(init.credentials).toBe('include');
     expect((init.headers as Headers).get('x-csrf-token')).toBeNull();
+  });
+
+  it('omits credentials and CSRF on temporary-context requests', async () => {
+    vi.stubGlobal('document', cookieJar(['cp_csrf=local-token']));
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(Response.json({}));
+    vi.stubGlobal('fetch', fetchMock);
+    await apiRequest('/temporary-contexts/read', { method: 'POST', credentials: 'omit' });
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [, init] = fetchMock.mock.calls[0]!;
+    expect(init?.credentials).toBe('omit');
+    expect(new Headers(init?.headers).has('x-csrf-token')).toBe(false);
+  });
+
+  it('gets the CSRF token from the direct API origin before a credentialed write', async () => {
+    vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.test/api/v1');
+    vi.stubGlobal('window', { location: { origin: 'https://web.example.test' } });
+    vi.stubGlobal('document', cookieJar(['cp_csrf=unrelated-local-token']));
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json({ csrfToken: 'api-token' }))
+      .mockResolvedValueOnce(Response.json({}));
+    vi.stubGlobal('fetch', fetchMock);
+    vi.resetModules();
+    const { apiRequest: directRequest } = await import('./client');
+
+    await directRequest('/auth/keys', { method: 'POST', body: '{}' });
+
+    const [[sessionUrl, sessionInit], [writeUrl, writeInit]] = fetchMock.mock.calls as [[string, RequestInit], [string, RequestInit]];
+    expect(sessionUrl).toBe('https://api.example.test/api/v1/auth/me');
+    expect(sessionInit.credentials).toBe('include');
+    expect(new Headers(sessionInit.headers).has('x-csrf-token')).toBe(false);
+    expect(writeUrl).toBe('https://api.example.test/api/v1/auth/keys');
+    expect(writeInit.credentials).toBe('include');
+    expect(new Headers(writeInit.headers).get('x-csrf-token')).toBe('api-token');
   });
 
   it('resolves 204 responses without parsing JSON', async () => {

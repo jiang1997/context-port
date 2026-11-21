@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { users, type Database } from '@contextport/db';
 import { DATABASE } from '../db/db.module.js';
 import { getEnvironment } from '../config/environment.js';
-import { GOOGLE_JWKS, GOOGLE_ISSUERS, GOOGLE_TOKEN_ENDPOINT } from './auth.constants.js';
+import { GOOGLE_JWKS, GOOGLE_ISSUERS, GOOGLE_TOKEN_ENDPOINT, tokensEqual } from './auth.constants.js';
 
 export interface GoogleIdentity {
   sub: string;
@@ -15,6 +15,10 @@ export interface GoogleIdentity {
 }
 
 const JWKS = createRemoteJWKSet(new URL(GOOGLE_JWKS));
+interface OAuthVerification {
+  codeVerifier: string;
+  nonce: string;
+}
 
 @Injectable()
 export class GoogleAuthService {
@@ -24,13 +28,13 @@ export class GoogleAuthService {
    * Verifies a Google ID Token (signature, aud, iss, exp) via JWKS and
    * upserts the local account by Google `sub`. Returns the internal user.
    */
-  async authenticateWithCode(code: string, redirectUri: string): Promise<{ id: string; email: string; name: string | null; avatarUrl: string | null }> {
+  async authenticateWithCode(code: string, redirectUri: string, verification: OAuthVerification): Promise<{ id: string; email: string; name: string | null; avatarUrl: string | null }> {
     const environment = getEnvironment();
     if (!environment.GOOGLE_CLIENT_ID || !environment.GOOGLE_CLIENT_SECRET) {
       throw new InternalServerErrorException('Google login is not configured.');
     }
 
-    const identity = await this.exchangeAndVerify(code, redirectUri, environment.GOOGLE_CLIENT_ID, environment.GOOGLE_CLIENT_SECRET);
+    const identity = await this.exchangeAndVerify(code, redirectUri, environment.GOOGLE_CLIENT_ID, environment.GOOGLE_CLIENT_SECRET, verification);
     return this.upsertUser(identity);
   }
 
@@ -39,6 +43,7 @@ export class GoogleAuthService {
     redirectUri: string,
     clientId: string,
     clientSecret: string,
+    verification: OAuthVerification,
   ): Promise<GoogleIdentity> {
     const response = await fetch(GOOGLE_TOKEN_ENDPOINT, {
       method: 'POST',
@@ -50,6 +55,7 @@ export class GoogleAuthService {
         client_secret: clientSecret,
         redirect_uri: redirectUri,
         grant_type: 'authorization_code',
+        code_verifier: verification.codeVerifier,
       }),
     });
     if (!response.ok) {
@@ -60,19 +66,20 @@ export class GoogleAuthService {
     if (typeof payload.id_token !== 'string' || payload.id_token.length === 0) {
       throw new UnauthorizedException({ code: 'GOOGLE_ID_TOKEN_MISSING', message: 'Google ID Token missing.' });
     }
-    return this.verifyIdToken(payload.id_token, clientId);
+    return this.verifyIdToken(payload.id_token, clientId, verification.nonce);
   }
 
-  private async verifyIdToken(idToken: string, clientId: string): Promise<GoogleIdentity> {
+  private async verifyIdToken(idToken: string, clientId: string, nonce: string): Promise<GoogleIdentity> {
     let claims: Record<string, unknown>;
     try {
       const { payload } = await jwtVerify(idToken, JWKS, {
         issuer: GOOGLE_ISSUERS,
         audience: clientId,
         clockTolerance: 60,
-        requiredClaims: ['exp', 'iat', 'sub'],
+        requiredClaims: ['exp', 'iat', 'sub', 'nonce'],
       });
-      claims = payload as Record<string, string | boolean>;
+      if (typeof payload.nonce !== 'string' || !tokensEqual(nonce, payload.nonce)) throw new Error('ID Token nonce mismatch.');
+      claims = payload;
     } catch {
       throw new UnauthorizedException({ code: 'GOOGLE_ID_TOKEN_INVALID', message: 'Google ID Token verification failed.' });
     }

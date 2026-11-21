@@ -1,5 +1,6 @@
 import type { ExecutionContext } from '@nestjs/common';
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 const config = vi.hoisted(() => ({
   WEB_ORIGIN: 'http://localhost:5173',
@@ -10,13 +11,18 @@ vi.mock('../config/environment.js', async (importOriginal) => {
   return { ...actual, getEnvironment: () => config };
 });
 import { BusinessGuard } from './business.guard.js';
+import { AuthController } from '../auth/auth.controller.js';
 
 const sessions = { resolve: vi.fn() };
 const apiKeys = { resolve: vi.fn() };
-function guard() { return new BusinessGuard(sessions as never, apiKeys as never); }
-function request(path: string, headers: Record<string, string> = {}, hostname = '127.0.0.1', method = 'GET') {
+function guard() { return new BusinessGuard(sessions as never, apiKeys as never, new Reflector()); }
+function request(path: string, headers: Record<string, string> = {}, hostname = '127.0.0.1', method = 'GET', handler: Function = request) {
   const req = { path, headers, hostname, method } as Record<string, unknown>;
-  return { switchToHttp: () => ({ getRequest: () => req }) } as ExecutionContext;
+  return {
+    switchToHttp: () => ({ getRequest: () => req }),
+    getHandler: () => handler,
+    getClass: () => AuthController,
+  } as ExecutionContext;
 }
 const USER_ID = '0d2c9a55-6a15-4f0e-9f3a-0d3e40b07a01';
 
@@ -45,11 +51,20 @@ describe('REST/MCP identity protection', () => {
       await expect(guard().canActivate(request(path, { authorization: 'Bearer incorrect' }))).rejects.toThrow(UnauthorizedException);
     }
   });
-  it('leaves browser session endpoints public even when auth is enabled', async () => {
-    await expect(guard().canActivate(request('/api/v1/auth/google/start'))).resolves.toBe(true);
-    await expect(guard().canActivate(request('/api/v1/auth/google/callback'))).resolves.toBe(true);
-    await expect(guard().canActivate(request('/api/v1/auth/me'))).resolves.toBe(true);
-    await expect(guard().canActivate(request('/api/v1/contexts'))).rejects.toThrow();
+  it('applies Origin checks before exempting explicitly public session routes', async () => {
+    const { start, callback, me, logout } = AuthController.prototype;
+    const routes = [
+      ['/api/v1/auth/google/start', 'GET', start],
+      ['/api/v1/auth/google/callback', 'GET', callback],
+      ['/api/v1/auth/me', 'GET', me],
+      ['/api/v1/auth/logout', 'POST', logout],
+    ] as const;
+    for (const [path, method, handler] of routes) {
+      await expect(guard().canActivate(request(path, {}, '127.0.0.1', method, handler))).resolves.toBe(true);
+      await expect(guard().canActivate(request(path, { origin: 'https://untrusted.example' }, '127.0.0.1', method, handler)))
+        .rejects.toThrow(ForbiddenException);
+    }
+    await expect(guard().canActivate(request('/api/v1/auth/unmarked'))).rejects.toThrow(UnauthorizedException);
   });
   it('allows anonymous temporary-contexts and clipboard calls but keeps other Context routes private', async () => {
     await expect(guard().canActivate(request('/api/v1/temporary-contexts/open', {}, '127.0.0.1', 'POST'))).resolves.toBe(true);
