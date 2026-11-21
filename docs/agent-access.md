@@ -98,8 +98,8 @@ Creation has no idempotency key: after a timeout, check the list before retrying
 
 The server exposes stateless Streamable HTTP MCP at `http://127.0.0.1:3000/mcp`.
 Configure an HTTP MCP client with that URL and the same Bearer API key header.
-For a deployed server, use its API host's `/mcp` endpoint; the Vercel Web rewrite
-only forwards `/api/*`, not `/mcp`.
+Use `https://context-port.vercel.app/mcp` for the hosted service. Vercel forwards
+`/mcp` to the API, which can also be reached directly at its own `/mcp` endpoint.
 
 Tools: `list_contexts`, `get_context`, `create_context`, `update_context`,
 `create_thread`, `get_thread`, and `update_thread`.

@@ -91,7 +91,7 @@ Context 详情包含不带正文的 Thread 摘要，Thread 正文需单独读取
 
 服务端在 `http://127.0.0.1:3000/mcp` 提供无状态 Streamable HTTP MCP。
 在支持 HTTP 的 MCP 客户端中配置该地址和同一个 Bearer API Key 请求头。
-部署后使用 API 服务地址下的 `/mcp`；Vercel 网页转发仅覆盖 `/api/*`，不包含 `/mcp`。
+线上可使用 `https://context-port.vercel.app/mcp`。Vercel 会将 `/mcp` 转发至 API，也可以直接使用 API 服务地址下的 `/mcp`。
 
 工具：`list_contexts`、`get_context`、`create_context`、`update_context`、
 `create_thread`、`get_thread`、`update_thread`。
