@@ -326,6 +326,14 @@ test('a stale draft can be merged with the latest shared version in place', asyn
   await expect(page.getByText('Agent addition', { exact: true })).toBeVisible();
 });
 
+test('an unknown path renders the application 404 with a home link', async ({ page }) => {
+  await page.goto('/a-page-that-does-not-exist');
+  await expect(page.getByText('Page not found', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'Back to home' }).click();
+  await expect(page).toHaveURL('/');
+  await expect(page.getByRole('heading', { name: 'Join an existing context' })).toBeVisible();
+});
+
 test('Chinese UI explains the temporary-context size limit', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('contextport.locale', 'zh-CN'));
   await page.goto('/');

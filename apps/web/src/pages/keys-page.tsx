@@ -89,30 +89,35 @@ function NewKeyBanner({ name, rawKey }: { name: string; rawKey: string }) {
   );
 }
 
-function KeyForm({ pending }: { pending: boolean }) {
+function KeyForm() {
   const { t } = useI18n();
   const client = useQueryClient();
   const auth = useAuthSession();
   const [name, setName] = useState('');
   const [nameError, setNameError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ name: string; key: string } | null>(null);
+  const submitting = useRef(false);
   const mutation = useMutation({
     mutationKey: [...accountQueryKey(auth.data?.user?.id), 'create-key'],
-    mutationFn: () => createKey(name.trim()),
+    mutationFn: createKey,
     onSuccess: (result) => {
       setCreated({ name: result.name, key: result.key });
       setName('');
       void client.invalidateQueries({ queryKey: [...accountQueryKey(auth.data?.user?.id), 'keys'] });
     },
+    onSettled: () => { submitting.current = false; },
   });
   function submit(event: FormEvent) {
     event.preventDefault();
-    if (!name.trim()) {
+    if (submitting.current || mutation.isPending) return;
+    const trimmedName = name.trim();
+    if (!trimmedName) {
       setNameError(t('@app.keys.nameRequired'));
       return;
     }
     setNameError(null);
-    mutation.mutate();
+    submitting.current = true;
+    mutation.mutate(trimmedName);
   }
   return (
     <Stack gap={3}>
@@ -126,11 +131,11 @@ function KeyForm({ pending }: { pending: boolean }) {
             onChange={value => { setName(value.slice(0, 100)); setNameError(null); }}
             isRequired
             placeholder={t('@app.keys.namePlaceholder')}
-            isDisabled={pending}
+            isDisabled={mutation.isPending}
             {...(nameError ? { status: { type: 'error' as const, message: nameError } } : {})}
           />
           <div>
-            <Button label={t('@app.keys.create')} variant="primary" type="submit" isDisabled={pending || !name.trim()} isLoading={mutation.isPending} />
+            <Button label={t('@app.keys.create')} variant="primary" type="submit" isDisabled={!name.trim()} isLoading={mutation.isPending} />
           </div>
         </Stack>
       </form>
@@ -144,6 +149,7 @@ export function KeysPage() {
   const { t, locale } = useI18n();
   const auth = useAuthSession();
   const client = useQueryClient();
+  const [revokeTarget, setRevokeTarget] = useState<string | null>(null);
   const query = useQuery({
     queryKey: [...accountQueryKey(auth.data?.user?.id), 'keys'],
     queryFn: ({ signal }) => listKeys(signal),
@@ -174,7 +180,7 @@ export function KeysPage() {
           {!auth.isPending && !auth.error && !auth.data?.user && <SignedOutNotice />}
           {auth.data?.user && (
             <>
-              <KeyForm pending={false} />
+              <KeyForm key={auth.data.user.id} />
               <ErrorNotice error={query.error} />
               <ErrorNotice error={revoke.error} />
               {query.isPending && <LoadingList rows={2} />}
@@ -194,7 +200,18 @@ export function KeysPage() {
                             : t('@app.keys.never')}
                         </Text>
                       </Stack>
-                      <Button label={t('@app.keys.revoke')} variant="ghost" size="sm" isLoading={revoke.isPending && revoke.variables === key.id} onClick={() => revoke.mutate(key.id)} />
+                      {revokeTarget === key.id
+                        ? <Stack gap={2}>
+                          <Text type="supporting">{t('@app.keys.revokeWarning', { name: key.name })}</Text>
+                          <Stack direction="horizontal" gap={2} wrap="wrap">
+                            <Button label={t('@app.keys.confirmRevoke')} variant="primary" size="sm" isDisabled={revoke.isPending}
+                              onClick={() => { setRevokeTarget(null); revoke.mutate(key.id); }} />
+                            <Button label={t('@app.keys.cancelRevoke')} variant="secondary" size="sm" onClick={() => setRevokeTarget(null)} />
+                          </Stack>
+                        </Stack>
+                        : <Button label={t('@app.keys.revoke')} variant="ghost" size="sm"
+                          isDisabled={revoke.isPending} isLoading={revoke.isPending && revoke.variables === key.id}
+                          onClick={() => setRevokeTarget(key.id)} />}
                     </Stack>
                   </Card>
                 ))}

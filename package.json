@@ -20,6 +20,7 @@
     "test:e2e": "node scripts/run-e2e.mjs"
   },
   "devDependencies": {
+    "@contextport/db": "workspace:*",
     "@playwright/test": "1.63.0",
     "@types/node": "26.6.2",
     "typescript": "5.9.3",
