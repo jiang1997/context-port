@@ -69,20 +69,65 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('per-user data isolation (phase 
     return `cp_session=${token}; cp_csrf=csrf-${token}`;
   }
 
-  it('keeps each user scoped to their own contexts across REST', async () => {
+  it('keeps Contexts, Threads, and keys scoped to their owners across REST and MCP', async () => {
+    const http = app.getHttpServer();
     const alice = await createUser('iso-alice', 'alice@example.com');
-    await createUser('iso-bob', 'bob@example.com');
+    const bob = await createUser('iso-bob', 'bob@example.com');
     const aliceCookie = await createSession(alice.id, 'alice-session-token');
-    const context = (await request(app.getHttpServer()).post('/api/v1/contexts')
-      .set('Cookie', aliceCookie).set('x-csrf-token', `csrf-alice-session-token`)
-      .send({ title: 'Alice private plan', content: 'secret', createdByType: 'human' }).expect(201)).body;
+    const bobCookie = await createSession(bob.id, 'bob-session-token');
+    const create = { title: 'Private document', content: 'Alice only', createdByType: 'human' };
+    const { id: contextId } = (await request(http).post('/api/v1/contexts')
+      .set('Cookie', aliceCookie).set('x-csrf-token', 'csrf-alice-session-token').send(create).expect(201)).body;
+    const contextPath = `/api/v1/contexts/${contextId}`;
+    const { id: threadId } = (await request(http).post(`${contextPath}/threads`)
+      .set('Cookie', aliceCookie).set('x-csrf-token', 'csrf-alice-session-token').send(create).expect(201)).body;
+    const threadPath = `${contextPath}/threads/${threadId}`;
+    const { id: aliceKeyId } = (await request(http).post('/api/v1/auth/keys')
+      .set('Cookie', aliceCookie).set('x-csrf-token', 'csrf-alice-session-token').send({ name: 'Alice key' }).expect(201)).body;
+    const { key: bobKey } = (await request(http).post('/api/v1/auth/keys')
+      .set('Cookie', bobCookie).set('x-csrf-token', 'csrf-bob-session-token').send({ name: 'Bob key' }).expect(201)).body;
 
-    const aliceList = await request(app.getHttpServer()).get('/api/v1/contexts')
-      .set('Cookie', aliceCookie).expect(200);
-    expect(aliceList.body).toHaveLength(1);
-    expect(aliceList.body[0].title).toBe('Alice private plan');
-    await request(app.getHttpServer()).get(`/api/v1/contexts/${context.id}`)
-      .set('Cookie', aliceCookie).expect(200);
+    const change = { content: 'Bob cannot change this', updatedByType: 'human', expectedVersion: 1 };
+    await request(http).get('/api/v1/contexts').set('Cookie', bobCookie).expect(200, []);
+    for (const path of [contextPath, threadPath]) {
+      await request(http).get(path).set('Cookie', bobCookie).expect(404);
+      await request(http).patch(path).set('Cookie', bobCookie).set('x-csrf-token', 'csrf-bob-session-token').send(change).expect(404);
+    }
+    await request(http).post(`${contextPath}/threads`).set('Cookie', bobCookie)
+      .set('x-csrf-token', 'csrf-bob-session-token').send(create).expect(404);
+    await request(http).post(`/api/v1/auth/keys/${aliceKeyId}/revoke`).set('Cookie', bobCookie)
+      .set('x-csrf-token', 'csrf-bob-session-token').expect(403);
+
+    const client = new Client({ name: 'bob-agent', version: '1.0.0' });
+    const transport = new StreamableHTTPClientTransport(new URL('/mcp', serverUrl), {
+      requestInit: { headers: { authorization: `Bearer ${bobKey}` } },
+    });
+    await client.connect(transport as Transport);
+    try {
+      const listed = await client.callTool({ name: 'list_contexts', arguments: {} });
+      expect(listed.isError).not.toBe(true);
+      expect(listed.content).toEqual([{ type: 'text', text: '[]' }]);
+      for (const [name, args, code] of [
+        ['get_context', { contextId }, 'CONTEXT_NOT_FOUND'],
+        ['update_context', { contextId, ...change }, 'CONTEXT_NOT_FOUND'],
+        ['create_thread', { contextId, ...create }, 'CONTEXT_NOT_FOUND'],
+        ['get_thread', { contextId, threadId }, 'THREAD_NOT_FOUND'],
+        ['update_thread', { contextId, threadId, ...change }, 'THREAD_NOT_FOUND'],
+      ] as const) {
+        const result = await client.callTool({ name, arguments: args });
+        expect(result.isError).toBe(true);
+        expect(JSON.stringify(result.content)).toContain(code);
+      }
+    } finally {
+      await client.close();
+    }
+
+    const context = (await request(http).get(contextPath).set('Cookie', aliceCookie).expect(200)).body;
+    expect(context).toMatchObject({ content: 'Alice only', version: 1, threads: [{ id: threadId, version: 1 }] });
+    const thread = (await request(http).get(threadPath).set('Cookie', aliceCookie).expect(200)).body;
+    expect(thread).toMatchObject({ content: 'Alice only', version: 1 });
+    const [aliceKey] = await bundle.db.select().from(apiKeys).where(eq(apiKeys.id, aliceKeyId));
+    expect(aliceKey?.revokedAt).toBeNull();
   });
 
   it('rejects anonymous, forged and CSRF-less requests with 401/403', async () => {

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { Test } from '@nestjs/testing';
 import { Global, Module, type ExecutionContext, type INestApplication } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { createDatabase, revisions, users } from '@contextport/db';
+import { contexts, createDatabase, revisions, users } from '@contextport/db';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { eq, sql } from 'drizzle-orm';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -107,6 +107,24 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('Context MVP integration', () =>
     const snapshots = await bundle.db.select().from(revisions).where(eq(revisions.threadId, thread.id));
     expect(snapshots.map(s => s.version).sort()).toEqual([1, 2]);
   });
+  it('rejects changes to Threads under archived Contexts', async () => {
+    const http = app.getHttpServer();
+    const { id: contextId } = (await request(http).post('/api/v1/contexts')
+      .send({ title: 'Archived project', createdByType: 'human' }).expect(201)).body;
+    const { id: threadId } = (await request(http).post(`/api/v1/contexts/${contextId}/threads`)
+      .send({ title: 'Existing Thread', createdByType: 'human' }).expect(201)).body;
+    await bundle.db.update(contexts).set({ archivedAt: sql`now()` }).where(eq(contexts.id, contextId));
+    await request(http).post(`/api/v1/contexts/${contextId}/threads`)
+      .send({ title: 'New Thread', createdByType: 'human' }).expect(404);
+    const change = { content: 'Rejected update', updatedByType: 'human', expectedVersion: 1 };
+    await request(http).patch(`/api/v1/contexts/${contextId}/threads/${threadId}`).send(change).expect(404);
+    const mcp = await client.callTool({ name: 'update_thread', arguments: { contextId, threadId, ...change } });
+    expect(mcp.isError).toBe(true);
+    expect(JSON.stringify(mcp.content)).toContain('THREAD_NOT_FOUND');
+    const snapshots = await bundle.db.select().from(revisions).where(eq(revisions.threadId, threadId));
+    expect(snapshots.map(snapshot => snapshot.version)).toEqual([1]);
+  });
+
   it('rolls back a Context if its snapshot cannot be saved', async () => {
     await bundle.db.execute(sql`CREATE FUNCTION reject_test_revision() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.title = '__fail_snapshot__' THEN RAISE EXCEPTION 'test failure'; END IF; RETURN NEW; END; $$`);
     await bundle.db.execute(sql`CREATE TRIGGER test_revision_failure BEFORE INSERT ON revisions FOR EACH ROW EXECUTE FUNCTION reject_test_revision()`);

@@ -82,10 +82,11 @@ export class ContextService {
     return this.db.transaction(async tx => {
       const [current] = await tx.select().from(threads)
         .innerJoin(contexts, eq(threads.contextId, contexts.id))
-        .where(and(eq(threads.contextId, contextId), eq(threads.id, threadId), eq(contexts.ownerUserId, userId)))
+        .where(and(eq(threads.contextId, contextId), eq(threads.id, threadId), this.ownership(userId),
+          isNull(contexts.archivedAt), isNull(threads.archivedAt)))
+        .for('share', { of: contexts })
         .then(rows => rows.map(r => r.threads));
       if (!current) throw new NotFoundException({ code: 'THREAD_NOT_FOUND', message: 'Thread not found in this Context.' });
-      if (current.archivedAt) throw new NotFoundException({ code: 'THREAD_NOT_FOUND', message: 'Thread not found in this Context.' });
       if (current.version !== data.expectedVersion) {
         throw new ConflictException({ code: 'VERSION_CONFLICT', message: 'Version conflict. Re-read, merge, then retry.',
           details: { expectedVersion: data.expectedVersion, currentVersion: current.version } });
@@ -96,7 +97,7 @@ export class ContextService {
         version: current.version + 1,
         updatedByType: data.updatedByType, updatedBy: data.updatedBy ?? null,
         updatedAt: new Date().toISOString(),
-      }).where(and(eq(threads.id, threadId), eq(threads.version, data.expectedVersion))).returning();
+      }).where(and(eq(threads.id, threadId), eq(threads.version, data.expectedVersion), isNull(threads.archivedAt))).returning();
       if (!updated) {
         throw new ConflictException({ code: 'VERSION_CONFLICT', message: 'Version conflict. Re-read, merge, then retry.',
           details: { expectedVersion: data.expectedVersion } });
